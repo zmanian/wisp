@@ -30,6 +30,16 @@ extension ServiceLogEvent: Decodable {
     }
 }
 
+/// Response from GET /v1/sprites/{name}/services/{serviceName}
+struct ServiceInfo: Codable, Sendable {
+    let name: String
+    let state: ServiceState
+
+    struct ServiceState: Codable, Sendable {
+        let status: String  // "running", "stopped", etc.
+    }
+}
+
 enum ServiceLogEventType: String, Codable, Sendable {
     case stdout
     case stderr

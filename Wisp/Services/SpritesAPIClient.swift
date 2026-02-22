@@ -265,6 +265,11 @@ final class SpritesAPIClient {
         }
     }
 
+    /// Check the status of a service.
+    func getServiceStatus(spriteName: String, serviceName: String) async throws -> ServiceInfo {
+        return try await request(method: "GET", path: "/sprites/\(spriteName)/services/\(serviceName)")
+    }
+
     /// Delete a service (5s timeout to avoid blocking callers if sprite is unresponsive).
     func deleteService(spriteName: String, serviceName: String) async throws {
         let _: EmptyResponse = try await request(method: "DELETE", path: "/sprites/\(spriteName)/services/\(serviceName)", timeout: 5)

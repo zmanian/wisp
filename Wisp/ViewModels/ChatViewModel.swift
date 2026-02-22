@@ -42,6 +42,9 @@ final class ChatViewModel {
     private var usedResume = false
     private var queuedPrompt: String?
     private var retriedAfterTimeout = false
+    /// UUIDs of Claude NDJSON events already processed.
+    /// Used by reconnect to skip already-handled events instead of clearing content.
+    private var processedEventUUIDs: Set<String> = []
 
     init(spriteName: String, chatId: UUID, currentServiceName: String?, workingDirectory: String) {
         self.spriteName = spriteName
@@ -430,6 +433,7 @@ final class ChatViewModel {
 
         receivedSystemEvent = false
         receivedResultEvent = false
+        processedEventUUIDs = []
 
         logger.info("Service command: \(Self.sanitize(fullCommand))")
 
@@ -451,7 +455,8 @@ final class ChatViewModel {
         currentAssistantMessage = assistantMessage
 
         let streamResult = await processServiceStream(stream: stream, modelContext: modelContext, breakOnComplete: true)
-        logger.info("[Chat] Main stream ended: result=\(streamResult), cancelled=\(Task.isCancelled)")
+        let uuidCount = processedEventUUIDs.count
+        logger.info("[Chat] Main stream ended: result=\(streamResult), cancelled=\(Task.isCancelled), uuids=\(uuidCount)")
 
         // If cancelled (e.g. by resumeAfterBackground), bail out immediately.
         // The reconnect task now owns the assistant message and shared state.
@@ -534,6 +539,9 @@ final class ChatViewModel {
     /// initial PUT stream where `.complete` means the service process ended. For GET logs
     /// reconnection, `.complete` just means the log replay finished and the stream ends
     /// naturally, so we leave it as false.
+    /// Events whose UUID is in `processedEventUUIDs` are skipped (but system/result
+    /// flags are still tracked). New event UUIDs are added to `processedEventUUIDs`
+    /// as they are handled, so reconnect replays never duplicate content.
     private func processServiceStream(
         stream: AsyncThrowingStream<ServiceLogEvent, Error>,
         modelContext: ModelContext,
@@ -542,12 +550,36 @@ final class ChatViewModel {
         var receivedData = false
         var lastPersistTime = Date.distantPast
         var eventCount = 0
+        var skippedCount = 0
 
         let timeoutTask = Task {
             try await Task.sleep(for: .seconds(30))
             if !receivedData {
                 logger.warning("No service data received in 30s")
             }
+        }
+
+        func handleOrSkip(_ parsedEvent: ClaudeStreamEvent) {
+            // Deduplicate by UUID — skip events we've already processed
+            if let uuid = parsedEvent.uuid, processedEventUUIDs.contains(uuid) {
+                skippedCount += 1
+                // Still track critical flags on skipped events
+                switch parsedEvent {
+                case .system(let se):
+                    receivedSystemEvent = true
+                    sessionId = se.sessionId
+                    modelName = se.model
+                case .result(let re):
+                    receivedResultEvent = true
+                    sessionId = re.sessionId
+                default: break
+                }
+                return
+            }
+            if let uuid = parsedEvent.uuid {
+                processedEventUUIDs.insert(uuid)
+            }
+            handleEvent(parsedEvent, modelContext: modelContext)
         }
 
         do {
@@ -572,7 +604,7 @@ final class ChatViewModel {
                     let data = Data(dataStr.utf8)
                     let events = await parser.parse(data: data)
                     for parsedEvent in events {
-                        handleEvent(parsedEvent, modelContext: modelContext)
+                        handleOrSkip(parsedEvent)
                     }
 
                     // Result event means Claude is done — stop waiting for more
@@ -600,7 +632,7 @@ final class ChatViewModel {
                     // Flush any remaining buffered data
                     let remaining = await parser.flush()
                     for e in remaining {
-                        handleEvent(e, modelContext: modelContext)
+                        handleOrSkip(e)
                     }
 
                 case .error:
@@ -615,7 +647,7 @@ final class ChatViewModel {
                     if breakOnComplete {
                         let flushed = await parser.flush()
                         for e in flushed {
-                            handleEvent(e, modelContext: modelContext)
+                            handleOrSkip(e)
                         }
                         break streamLoop
                     }
@@ -634,11 +666,12 @@ final class ChatViewModel {
             // Flush parser on stream end
             let remaining = await parser.flush()
             for e in remaining {
-                handleEvent(e, modelContext: modelContext)
+                handleOrSkip(e)
             }
             timeoutTask.cancel()
 
-            logger.info("Stream ended: events=\(eventCount) receivedData=\(receivedData)")
+            let uuidCount = processedEventUUIDs.count
+            logger.info("Stream ended: events=\(eventCount) receivedData=\(receivedData) skipped=\(skippedCount) uuids=\(uuidCount)")
             return Task.isCancelled ? .cancelled : (receivedData ? .completed : .timedOut)
         } catch {
             timeoutTask.cancel()
@@ -651,64 +684,90 @@ final class ChatViewModel {
     }
 
     /// Reconnect to a running service via GET logs (provides full history).
-    /// Reuses the existing assistant message — clears its content and replays
-    /// the full service log into it, avoiding duplicate messages entirely.
+    /// Skips already-processed Claude events (tracked by `totalClaudeEventsProcessed`)
+    /// so existing content stays on screen with no flash. Only genuinely new events
+    /// are appended. If the service is still running after a replay, polls and
+    /// re-replays until the service stops or a result event arrives.
     private func reconnectToServiceLogs(
         apiClient: SpritesAPIClient,
         modelContext: ModelContext
     ) async {
         status = .reconnecting
-        logger.info("[Chat] Reconnecting to service logs")
+        let priorUUIDs = processedEventUUIDs.count
+        logger.info("[Chat] Reconnecting to service logs (\(priorUUIDs) prior UUIDs)")
 
-        receivedSystemEvent = false
-        receivedResultEvent = false
-
-        // Reuse the existing assistant message — clear and replay into it
+        // Ensure we have an assistant message to append into.
+        // Only clear content if we have no prior events to skip (cold reconnect).
         let assistantMessage: ChatMessage
+        let hasPriorEvents = !processedEventUUIDs.isEmpty
         if let existing = currentAssistantMessage {
             assistantMessage = existing
-            assistantMessage.content = []
+            if !hasPriorEvents { assistantMessage.content = [] }
             assistantMessage.isStreaming = true
         } else if let last = messages.last(where: { $0.role == .assistant }) {
             assistantMessage = last
-            assistantMessage.content = []
+            if !hasPriorEvents { assistantMessage.content = [] }
             assistantMessage.isStreaming = true
             currentAssistantMessage = last
         } else {
-            // No assistant message exists (shouldn't happen, but be safe)
             assistantMessage = ChatMessage(role: .assistant, isStreaming: true)
             messages.append(assistantMessage)
             currentAssistantMessage = assistantMessage
         }
 
-        // Reset parser and tool index for fresh replay
-        await parser.reset()
-        toolUseIndex = [:]
-        rebuildToolUseIndex()
+        // Replay loop — each iteration fetches full log history.
+        // processServiceStream skips events whose UUID is already in
+        // processedEventUUIDs, so content is never cleared mid-stream.
+        while !Task.isCancelled {
+            receivedSystemEvent = false
+            receivedResultEvent = false
 
-        let stream = apiClient.streamServiceLogs(
-            spriteName: spriteName,
-            serviceName: serviceName
-        )
+            // Reset parser for new HTTP stream (buffer may have stale partial data)
+            await parser.reset()
 
-        status = .streaming
-        let streamResult = await processServiceStream(stream: stream, modelContext: modelContext)
+            if !hasPriorEvents {
+                // Cold start — clear tool index for fresh replay
+                toolUseIndex = [:]
+                rebuildToolUseIndex()
+            }
 
+            let stream = apiClient.streamServiceLogs(
+                spriteName: spriteName,
+                serviceName: serviceName
+            )
+
+            status = .streaming
+            let streamResult = await processServiceStream(
+                stream: stream,
+                modelContext: modelContext
+            )
+
+            let currentUUIDs = processedEventUUIDs.count
+            logger.info("[Chat] Reconnect stream ended: result=\(streamResult), content=\(assistantMessage.content.count), uuids=\(currentUUIDs)")
+
+            guard !Task.isCancelled else { return }
+
+            // If we got a result event, Claude is done
+            if receivedResultEvent { break }
+
+            // Check if service is still running before retrying
+            if let serviceInfo = try? await apiClient.getServiceStatus(spriteName: spriteName, serviceName: serviceName),
+               serviceInfo.state.status == "running" {
+                logger.info("[Chat] Service still running, will re-poll after delay")
+                try? await Task.sleep(for: .seconds(2))
+                continue
+            }
+
+            // Service not running or status check failed — we're done
+            break
+        }
+
+        // Finalize
         assistantMessage.isStreaming = false
         if currentAssistantMessage?.id == assistantMessage.id {
             currentAssistantMessage = nil
         }
 
-        logger.info("[Chat] Reconnect stream ended: result=\(streamResult), content=\(assistantMessage.content.count)")
-
-        // Retry on disconnect if Claude hasn't finished
-        if case .disconnected = streamResult, !receivedResultEvent, !Task.isCancelled {
-            logger.info("Disconnected again during reconnect, retrying")
-            await reconnectToServiceLogs(apiClient: apiClient, modelContext: modelContext)
-            return
-        }
-
-        // Finalize
         saveSession(modelContext: modelContext)
         if !Task.isCancelled {
             status = .idle

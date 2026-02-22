@@ -6,6 +6,16 @@ enum ClaudeStreamEvent: Sendable {
     case user(ClaudeToolResultEvent)
     case result(ClaudeResultEvent)
     case unknown(String)
+
+    var uuid: String? {
+        switch self {
+        case .system(let e): e.uuid
+        case .assistant(let e): e.uuid
+        case .user(let e): e.uuid
+        case .result(let e): e.uuid
+        case .unknown: nil
+        }
+    }
 }
 
 extension ClaudeStreamEvent: Decodable {

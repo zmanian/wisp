@@ -8,11 +8,12 @@ struct ClaudeSystemEvent: Codable, Sendable {
     let model: String?
     let tools: [String]?
     let cwd: String?
+    var uuid: String?
 
     enum CodingKeys: String, CodingKey {
         case type
         case sessionId = "session_id"
-        case model, tools, cwd
+        case model, tools, cwd, uuid
     }
 }
 
@@ -21,6 +22,7 @@ struct ClaudeSystemEvent: Codable, Sendable {
 struct ClaudeAssistantEvent: Codable, Sendable {
     let type: String
     let message: ClaudeAssistantMessage
+    var uuid: String?
 }
 
 struct ClaudeAssistantMessage: Codable, Sendable {
@@ -85,6 +87,7 @@ struct ClaudeToolUse: Codable, Sendable {
 struct ClaudeToolResultEvent: Codable, Sendable {
     let type: String
     let message: ClaudeToolResultMessage
+    var uuid: String?
 }
 
 struct ClaudeToolResultMessage: Codable, Sendable {
@@ -114,9 +117,10 @@ struct ClaudeResultEvent: Codable, Sendable {
     let durationMs: Double?
     let numTurns: Int?
     let result: String?
+    var uuid: String?
 
     enum CodingKeys: String, CodingKey {
-        case type, subtype, result
+        case type, subtype, result, uuid
         case sessionId = "session_id"
         case isError = "is_error"
         case durationMs = "duration_ms"
