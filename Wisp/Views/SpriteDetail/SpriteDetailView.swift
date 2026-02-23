@@ -9,7 +9,7 @@ struct SpriteDetailView: View {
     @State private var checkpointsViewModel: CheckpointsViewModel
     @State private var showChatSwitcher = false
     @State private var showStaleChatsAlert = false
-    @State private var streamingChatIds: Set<UUID> = []
+    @State private var knownStreamingChatIds: Set<UUID> = []
     @State private var showCopiedFeedback = false
     @Environment(SpritesAPIClient.self) private var apiClient
     @Environment(\.modelContext) private var modelContext
@@ -146,7 +146,7 @@ struct SpriteDetailView: View {
         if let oldVM = chatViewModel {
             let wasStreaming = oldVM.detach(modelContext: modelContext)
             if wasStreaming {
-                streamingChatIds.insert(oldVM.chatId)
+                knownStreamingChatIds.insert(oldVM.chatId)
             }
         }
 
@@ -160,9 +160,11 @@ struct SpriteDetailView: View {
         chatViewModel = vm
         chatListViewModel.activeChatId = chat.id
 
-        // Reconnect if this chat was streaming when we switched away
-        if streamingChatIds.remove(chat.id) != nil {
-            vm.reconnectIfNeeded(apiClient: apiClient, modelContext: modelContext)
-        }
+        // Always try reconnect — checks service status first, so it's
+        // cheap for old chats where the service has already stopped.
+        // This handles both switching between chats and navigating
+        // back to the sprite after the view was destroyed.
+        knownStreamingChatIds.remove(chat.id)
+        vm.reconnectIfNeeded(apiClient: apiClient, modelContext: modelContext)
     }
 }

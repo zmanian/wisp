@@ -370,6 +370,10 @@ final class ChatViewModel {
         guard !isStreaming, !messages.isEmpty else { return }
 
         streamTask = Task {
+            // Only reconnect if the service exists (running or stopped with logs)
+            guard let _ = try? await apiClient.getServiceStatus(spriteName: spriteName, serviceName: serviceName)
+            else { return }
+
             await reconnectToServiceLogs(apiClient: apiClient, modelContext: modelContext)
         }
     }
