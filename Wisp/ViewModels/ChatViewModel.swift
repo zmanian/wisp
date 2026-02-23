@@ -1,6 +1,7 @@
 import Foundation
 import os
 import SwiftData
+import UIKit
 
 private let logger = Logger(subsystem: "com.wisp.app", category: "Chat")
 
@@ -45,6 +46,7 @@ final class ChatViewModel {
     /// UUIDs of Claude NDJSON events already processed.
     /// Used by reconnect to skip already-handled events instead of clearing content.
     private var processedEventUUIDs: Set<String> = []
+    private var hasPlayedFirstTextHaptic = false
 
     init(spriteName: String, chatId: UUID, currentServiceName: String?, workingDirectory: String) {
         self.spriteName = spriteName
@@ -58,6 +60,16 @@ final class ChatViewModel {
         if case .connecting = status { return true }
         if case .reconnecting = status { return true }
         return false
+    }
+
+    var activeToolLabel: String? {
+        guard let message = currentAssistantMessage else { return nil }
+        for item in message.content.reversed() {
+            if case .toolUse(let card) = item, card.result == nil {
+                return card.activityLabel
+            }
+        }
+        return nil
     }
 
     func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
@@ -288,6 +300,7 @@ final class ChatViewModel {
 
     private func rebuildToolUseIndex() {
         toolUseIndex = [:]
+        var toolCards: [String: ToolUseCard] = [:]
         for (messageIndex, message) in messages.enumerated() {
             for item in message.content {
                 if case .toolUse(let card) = item {
@@ -295,6 +308,15 @@ final class ChatViewModel {
                         messageIndex: messageIndex,
                         toolName: card.toolName
                     )
+                    toolCards[card.toolUseId] = card
+                }
+            }
+        }
+        // Second pass: link tool results to their tool use cards
+        for message in messages {
+            for item in message.content {
+                if case .toolResult(let resultCard) = item {
+                    toolCards[resultCard.toolUseId]?.result = resultCard
                 }
             }
         }
@@ -438,6 +460,7 @@ final class ChatViewModel {
         receivedSystemEvent = false
         receivedResultEvent = false
         processedEventUUIDs = []
+        hasPlayedFirstTextHaptic = false
 
         logger.info("Service command: \(Self.sanitize(fullCommand))")
 
@@ -700,6 +723,8 @@ final class ChatViewModel {
         let priorUUIDs = processedEventUUIDs.count
         logger.info("[Chat] Reconnecting to service logs (\(priorUUIDs) prior UUIDs)")
 
+        hasPlayedFirstTextHaptic = false
+
         // Ensure we have an assistant message to append into.
         // Only clear content if we have no prior events to skip (cold reconnect).
         let assistantMessage: ChatMessage
@@ -798,6 +823,10 @@ final class ChatViewModel {
             for block in assistantEvent.message.content {
                 switch block {
                 case .text(let text):
+                    if !hasPlayedFirstTextHaptic {
+                        hasPlayedFirstTextHaptic = true
+                        fireHaptic(.medium)
+                    }
                     // Merge consecutive text blocks
                     if case .text(let existing) = message.content.last {
                         message.content[message.content.count - 1] = .text(existing + text)
@@ -825,12 +854,21 @@ final class ChatViewModel {
 
             for result in toolResultEvent.message.content {
                 let toolName = toolUseIndex[result.toolUseId]?.toolName ?? "Unknown"
-                let card = ToolResultCard(
+                let resultCard = ToolResultCard(
                     toolUseId: result.toolUseId,
                     toolName: toolName,
                     content: result.content ?? .null
                 )
-                message.content.append(.toolResult(card))
+                message.content.append(.toolResult(resultCard))
+
+                // Link result back to matching tool use card
+                for item in message.content {
+                    if case .toolUse(let toolCard) = item, toolCard.toolUseId == result.toolUseId {
+                        toolCard.result = resultCard
+                        break
+                    }
+                }
+                fireHaptic(.light)
             }
 
         case .result(let resultEvent):
@@ -905,6 +943,10 @@ final class ChatViewModel {
         timeoutTask.cancel()
         session.disconnect()
         return !timedOut
+    }
+
+    private func fireHaptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
+        UIImpactFeedbackGenerator(style: style).impactOccurred()
     }
 
     #if DEBUG

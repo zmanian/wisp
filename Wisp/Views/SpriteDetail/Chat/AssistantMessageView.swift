@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AssistantMessageView: View {
     let message: ChatMessage
+    @State private var selectedToolCard: ToolUseCard?
 
     var body: some View {
         HStack(alignment: .top) {
@@ -24,9 +25,29 @@ struct AssistantMessageView: View {
                                 }
                             }
                     case .toolUse(let card):
-                        ToolUseCardView(card: card)
-                    case .toolResult(let card):
-                        ToolResultCardView(card: card)
+                        if card.result != nil {
+                            // Completed tool -- compact step row
+                            ToolStepRow(card: card) {
+                                selectedToolCard = card
+                            }
+                        } else if !message.isStreaming {
+                            // Cancelled/incomplete tool (not streaming) -- muted row
+                            HStack(spacing: 6) {
+                                Image(systemName: card.iconName)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.quaternary)
+                                    .frame(width: 16)
+                                Text(card.activityLabel)
+                                    .font(.caption)
+                                    .foregroundStyle(.quaternary)
+                                    .strikethrough()
+                                    .lineLimit(1)
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        // Active tool while streaming -- shimmer handles it, render nothing
+                    case .toolResult:
+                        EmptyView()
                     case .error(let errorMessage):
                         Label(errorMessage, systemImage: "exclamationmark.triangle")
                             .font(.caption)
@@ -35,12 +56,11 @@ struct AssistantMessageView: View {
                             .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                     }
                 }
-
-                if message.isStreaming {
-                    StreamingIndicator()
-                }
             }
             Spacer(minLength: 60)
+        }
+        .sheet(item: $selectedToolCard) { card in
+            ToolDetailSheet(card: card)
         }
     }
 }
