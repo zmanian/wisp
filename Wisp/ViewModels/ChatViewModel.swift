@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 import os
 import SwiftData
 
@@ -879,9 +880,9 @@ final class ChatViewModel {
 
             if turnHasMutations, let apiClient {
                 let assistantMsg = currentAssistantMessage
-                let comment = Self.checkpointComment(from: assistantMsg)
                 let sprite = spriteName
                 Task { [weak assistantMsg] in
+                    let comment = await Self.generateCheckpointComment(from: assistantMsg)
                     await self.createAutoCheckpoint(
                         apiClient: apiClient,
                         sprite: sprite,
@@ -928,10 +929,10 @@ final class ChatViewModel {
     func createCheckpoint(for message: ChatMessage, modelContext: ModelContext) {
         guard let apiClient, message.checkpointId == nil else { return }
         isCheckpointing = true
-        let comment = Self.checkpointComment(from: message)
         let sprite = spriteName
         Task { [weak message] in
             defer { self.isCheckpointing = false }
+            let comment = await Self.generateCheckpointComment(from: message)
             await self.createAutoCheckpoint(
                 apiClient: apiClient,
                 sprite: sprite,
@@ -949,6 +950,35 @@ final class ChatViewModel {
         guard !text.isEmpty else { return nil }
         let firstLine = text.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? text
         return String(firstLine.prefix(80))
+    }
+
+    /// Generates a changelog-style checkpoint comment using the on-device language model.
+    /// Falls back to the first-line truncation approach if the model is unavailable or fails.
+    static func generateCheckpointComment(from message: ChatMessage?) async -> String? {
+        guard let message else { return nil }
+        let text = await MainActor.run { message.textContent }
+        guard !text.isEmpty else { return nil }
+
+        let fallback: String = {
+            let firstLine = text.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? text
+            return String(firstLine.prefix(80))
+        }()
+
+        guard SystemLanguageModel.default.isAvailable else { return fallback }
+
+        do {
+            let session = LanguageModelSession(
+                instructions: "You write concise changelog-style summaries for software checkpoints. Respond with a single sentence in past tense describing what was done. Be specific about files or features. No markdown, no quotes."
+            )
+            let truncated = String(text.prefix(2000))
+            let response = try await session.respond(
+                to: "Summarize what this AI coding assistant did in one sentence:\n\n\(truncated)"
+            )
+            let generated = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            return generated.isEmpty ? fallback : String(generated.prefix(120))
+        } catch {
+            return fallback
+        }
     }
 
     private func fetchChat(modelContext: ModelContext) -> SpriteChat? {
