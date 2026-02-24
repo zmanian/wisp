@@ -54,3 +54,28 @@ non-interactive mode `-p`, with `--output-format stream-json`. The JSON messages
 are received in the streaming response, and displayed in the chat as Claude responds.
 When you send a follow up message `--resume` is used to pass the previous
 session ID to Claude and continue the chat.
+
+## Enhancements over upstream
+
+This fork ([zmanian/wisp](https://github.com/zmanian/wisp)) adds the following on top of [mcintyre94/wisp](https://github.com/mcintyre94/wisp):
+
+### Thinking shimmer and inline tool steps
+
+Replaces the basic streaming indicator with a richer UX during Claude's tool use:
+
+- **Thinking shimmer** -- a pulsing animation at the bottom of the chat showing the current tool activity (e.g., "Reading file...", "Running command...")
+- **Inline tool steps** -- completed tool calls appear as compact rows below the shimmer with tool name, timing, and a checkmark. Tap any step to see the full input/output in a detail sheet.
+
+### Dynamic Island Live Activity
+
+An ActivityKit Live Activity shows Claude's progress in the Dynamic Island and on the Lock Screen, even when the app is backgrounded:
+
+- **Dynamic Island compact** -- colored status dot (blue = active, green = done) and current intent text
+- **Dynamic Island expanded** -- sprite name, current tool, step count, and previously completed tool
+- **Lock Screen banner** -- sprite name with step count pill, stacked intent cards with depth effect, current tool with a live timer, and a completion state with green checkmark
+- Automatic lifecycle management tied to the chat streaming flow
+
+### Stream reliability
+
+- Reduced HTTP stream idle timeout from 1 hour to 2 minutes so silently dropped connections trigger auto-reconnect instead of hanging indefinitely
+- Service event decode failures are logged instead of silently dropped
