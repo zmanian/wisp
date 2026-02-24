@@ -37,7 +37,7 @@ struct ChatInputBar: View {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.title2)
             }
-            .tint(isEmpty ? .gray : .blue)
+            .tint(isEmpty ? .gray : Color.accentColor)
             .disabled(isEmpty)
             .buttonStyle(.glass)
         }

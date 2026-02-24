@@ -12,7 +12,7 @@ struct UserBubbleView: View {
                         Text(text)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
-                            .background(.blue, in: RoundedRectangle(cornerRadius: 16))
+                            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 16))
                             .foregroundStyle(.white)
                     }
                 }

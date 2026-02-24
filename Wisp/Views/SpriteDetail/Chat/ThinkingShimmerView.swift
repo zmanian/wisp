@@ -50,7 +50,7 @@ private struct PulsingDot: View {
 
     var body: some View {
         Circle()
-            .fill(Color.purple)
+            .fill(Color.accentColor)
             .frame(width: 6, height: 6)
             .scaleEffect(isAnimating ? 1.3 : 0.8)
             .opacity(isAnimating ? 1 : 0.5)
