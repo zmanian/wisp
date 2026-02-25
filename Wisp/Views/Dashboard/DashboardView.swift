@@ -35,11 +35,19 @@ struct DashboardView: View {
                             NavigationLink(value: sprite) {
                                 SpriteRowView(sprite: sprite)
                             }
+                            .buttonStyle(.plain)
                             .swipeActions(edge: .trailing) {
                                 Button("Delete") {
                                     viewModel.spriteToDelete = sprite
                                 }
                                 .tint(.red)
+                            }
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    viewModel.spriteToDelete = sprite
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                             .confirmationDialog("Delete Sprite?", isPresented: .init(
                                 get: { viewModel.spriteToDelete?.id == sprite.id },
@@ -51,13 +59,26 @@ struct DashboardView: View {
                             } message: {
                                 Text("This will permanently delete \"\(sprite.name)\". This action cannot be undone.")
                             }
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                         }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                     .refreshable {
                         await viewModel.loadSprites(apiClient: apiClient)
                     }
                 }
             }
+            .background(
+                LinearGradient(
+                    colors: [Color(.systemBackground), Color.accentColor.opacity(0.06)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+            )
             .navigationTitle("Sprites")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
