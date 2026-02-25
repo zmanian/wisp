@@ -44,6 +44,7 @@ struct SpriteNavigationPanel: View {
                     Label("New Chat", systemImage: "square.and.pencil")
                 }
                 .foregroundStyle(.secondary)
+                .buttonStyle(.borderless)
             }
         }
         .listStyle(.sidebar)

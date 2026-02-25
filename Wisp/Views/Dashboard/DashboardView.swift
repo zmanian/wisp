@@ -8,7 +8,7 @@ enum SpriteSortOrder: String, CaseIterable {
 struct DashboardView: View {
     @Environment(SpritesAPIClient.self) private var apiClient
     @State private var viewModel = DashboardViewModel()
-    @State private var selectedSprite: Sprite?
+    @State private var selectedSpriteID: String?
     @State private var sortOrder: SpriteSortOrder = .newest
     @State private var showSettings = false
 
@@ -31,10 +31,10 @@ struct DashboardView: View {
                         description: Text("Create a Sprite to get started")
                     )
                 } else {
-                    List(selection: $selectedSprite) {
+                    List(selection: $selectedSpriteID) {
                         ForEach(sortedSprites) { sprite in
                             SpriteRowView(sprite: sprite)
-                                .tag(sprite)
+                                .tag(sprite.id)
                                 .swipeActions(edge: .trailing) {
                                     Button("Delete") {
                                         viewModel.spriteToDelete = sprite
@@ -107,7 +107,7 @@ struct DashboardView: View {
                 }
             }
         } detail: {
-            if let selectedSprite {
+            if let id = selectedSpriteID, let selectedSprite = sortedSprites.first(where: { $0.id == id }) {
                 SpriteDetailView(sprite: selectedSprite)
             } else {
                 ContentUnavailableView(
@@ -118,8 +118,8 @@ struct DashboardView: View {
             }
         }
         .onChange(of: sortedSprites) { _, newSprites in
-            if let selected = selectedSprite, !newSprites.contains(selected) {
-                selectedSprite = nil
+            if let id = selectedSpriteID, !newSprites.contains(where: { $0.id == id }) {
+                selectedSpriteID = nil
             }
         }
         .task {
