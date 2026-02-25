@@ -89,47 +89,50 @@ struct WispCodeHighlighter: CodeSyntaxHighlighter {
     private static let configCache: [String: LanguageConfiguration] = {
         var cache: [String: LanguageConfiguration] = [:]
 
+        // TreeSitterLanguages puts .scm files at the bundle root (not in a queries/ subdir),
+        // so we use queriesURL: pointing at the bundle root instead of bundleName:
         func add(_ tsLanguage: OpaquePointer, name: String, bundleName: String, aliases: [String]) {
-            guard let config = try? LanguageConfiguration(
-                tsLanguage, name: name, bundleName: bundleName
-            ) else { return }
+            guard let bundleURL = Bundle.main.url(forResource: bundleName, withExtension: "bundle"),
+                  let config = try? LanguageConfiguration(tsLanguage, name: name, queriesURL: bundleURL) else {
+                return
+            }
             for alias in aliases {
                 cache[alias] = config
             }
         }
 
         add(tree_sitter_swift(), name: "Swift",
-            bundleName: "TreeSitterSwiftQueries_TreeSitterSwiftQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterSwiftQueries",
             aliases: ["swift"])
         add(tree_sitter_python(), name: "Python",
-            bundleName: "TreeSitterPythonQueries_TreeSitterPythonQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterPythonQueries",
             aliases: ["python", "py"])
         add(tree_sitter_javascript(), name: "JavaScript",
-            bundleName: "TreeSitterJavaScriptQueries_TreeSitterJavaScriptQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterJavaScriptQueries",
             aliases: ["javascript", "js", "jsx"])
         add(tree_sitter_typescript(), name: "TypeScript",
-            bundleName: "TreeSitterTypeScriptQueries_TreeSitterTypeScriptQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterTypeScriptQueries",
             aliases: ["typescript", "ts", "tsx"])
         add(tree_sitter_rust(), name: "Rust",
-            bundleName: "TreeSitterRustQueries_TreeSitterRustQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterRustQueries",
             aliases: ["rust", "rs"])
         add(tree_sitter_go(), name: "Go",
-            bundleName: "TreeSitterGoQueries_TreeSitterGoQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterGoQueries",
             aliases: ["go", "golang"])
         add(tree_sitter_bash(), name: "Bash",
-            bundleName: "TreeSitterBashQueries_TreeSitterBashQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterBashQueries",
             aliases: ["bash", "sh", "shell", "zsh"])
         add(tree_sitter_json(), name: "JSON",
-            bundleName: "TreeSitterJSONQueries_TreeSitterJSONQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterJSONQueries",
             aliases: ["json"])
         add(tree_sitter_yaml(), name: "YAML",
-            bundleName: "TreeSitterYAMLQueries_TreeSitterYAMLQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterYAMLQueries",
             aliases: ["yaml", "yml"])
         add(tree_sitter_html(), name: "HTML",
-            bundleName: "TreeSitterHTMLQueries_TreeSitterHTMLQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterHTMLQueries",
             aliases: ["html", "xml", "svg"])
         add(tree_sitter_css(), name: "CSS",
-            bundleName: "TreeSitterCSSQueries_TreeSitterCSSQueries",
+            bundleName: "TreeSitterLanguages_TreeSitterCSSQueries",
             aliases: ["css", "scss"])
 
         return cache
