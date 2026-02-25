@@ -3,13 +3,19 @@ import SwiftUI
 struct UnifiedDiffView: View {
     let oldString: String
     let newString: String
+    private let diffLines: [DiffLine]
+
+    init(oldString: String, newString: String) {
+        self.oldString = oldString
+        self.newString = newString
+        self.diffLines = Self.computeDiff(oldString: oldString, newString: newString)
+    }
 
     @State private var isExpanded = false
 
     private static let maxCollapsedLines = 20
 
     var body: some View {
-        let diffLines = computeDiff()
         let showExpand = diffLines.count > Self.maxCollapsedLines && !isExpanded
         let visibleLines = showExpand ? Array(diffLines.prefix(Self.maxCollapsedLines)) : diffLines
 
@@ -83,7 +89,7 @@ struct UnifiedDiffView: View {
         }
     }
 
-    private func computeDiff() -> [DiffLine] {
+    private static func computeDiff(oldString: String, newString: String) -> [DiffLine] {
         let oldLines = oldString.components(separatedBy: "\n")
         let newLines = newString.components(separatedBy: "\n")
 
@@ -124,7 +130,7 @@ struct UnifiedDiffView: View {
         return result
     }
 
-    private func longestCommonSubsequence(_ a: [String], _ b: [String]) -> [String] {
+    private static func longestCommonSubsequence(_ a: [String], _ b: [String]) -> [String] {
         let m = a.count
         let n = b.count
         var dp = Array(repeating: Array(repeating: 0, count: n + 1), count: m + 1)
