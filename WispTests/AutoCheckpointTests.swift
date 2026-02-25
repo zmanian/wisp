@@ -84,44 +84,48 @@ struct AutoCheckpointTests {
         #expect(msg.checkpointComment == nil)
     }
 
-    // MARK: - Checkpoint comment extraction
+    // MARK: - Checkpoint comment generation
 
-    @Test("Comment extracts first line of text content")
-    func checkpointCommentFirstLine() {
+    @Test("Comment is non-nil and non-empty for text content")
+    func checkpointCommentFromText() async {
         let msg = ChatMessage(role: .assistant, content: [
             .text("Updated the configuration file\nAlso fixed a typo in the README")
         ])
-        let comment = ChatViewModel.checkpointComment(from: msg)
-        #expect(comment == "Updated the configuration file")
+        let comment = await ChatViewModel.generateCheckpointComment(from: msg)
+        #expect(comment != nil)
+        #expect(comment!.isEmpty == false)
+        #expect(comment!.count <= 120)
     }
 
-    @Test("Comment truncates to 80 chars")
-    func checkpointCommentTruncation() {
-        let longText = String(repeating: "a", count: 120)
+    @Test("Comment is capped at 120 chars")
+    func checkpointCommentMaxLength() async {
+        let longText = String(repeating: "a", count: 200)
         let msg = ChatMessage(role: .assistant, content: [.text(longText)])
-        let comment = ChatViewModel.checkpointComment(from: msg)
-        #expect(comment?.count == 80)
+        let comment = await ChatViewModel.generateCheckpointComment(from: msg)
+        #expect(comment != nil)
+        #expect(comment!.count <= 120)
     }
 
-    @Test("Comment is nil for empty text")
-    func checkpointCommentEmpty() {
+    @Test("Comment is nil for empty content")
+    func checkpointCommentEmpty() async {
         let msg = ChatMessage(role: .assistant, content: [])
-        let comment = ChatViewModel.checkpointComment(from: msg)
+        let comment = await ChatViewModel.generateCheckpointComment(from: msg)
         #expect(comment == nil)
     }
 
     @Test("Comment is nil for nil message")
-    func checkpointCommentNilMessage() {
-        let comment = ChatViewModel.checkpointComment(from: nil)
+    func checkpointCommentNilMessage() async {
+        let comment = await ChatViewModel.generateCheckpointComment(from: nil)
         #expect(comment == nil)
     }
 
-    @Test("Comment works with tool-use-only message")
-    func checkpointCommentToolUseOnly() {
+    @Test("Comment is non-nil for tool-use-only message")
+    func checkpointCommentToolUseOnly() async {
         let card = ToolUseCard(toolUseId: "tu-1", toolName: "Bash", input: .string("ls"))
         let msg = ChatMessage(role: .assistant, content: [.toolUse(card)])
-        let comment = ChatViewModel.checkpointComment(from: msg)
-        #expect(comment == nil)
+        let comment = await ChatViewModel.generateCheckpointComment(from: msg)
+        #expect(comment != nil)
+        #expect(comment!.isEmpty == false)
     }
 
     // MARK: - SpriteChat forkContext

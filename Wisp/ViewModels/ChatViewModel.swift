@@ -943,38 +943,58 @@ final class ChatViewModel {
         }
     }
 
-    nonisolated static func checkpointComment(from message: ChatMessage?) -> String? {
-        guard let message else { return nil }
-        // Must be called from @MainActor context — accessing textContent synchronously
-        let text = MainActor.assumeIsolated { message.textContent }
-        guard !text.isEmpty else { return nil }
-        let firstLine = text.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? text
-        return String(firstLine.prefix(80))
-    }
-
     /// Generates a changelog-style checkpoint comment using the on-device language model.
     /// Falls back to the first-line truncation approach if the model is unavailable or fails.
     static func generateCheckpointComment(from message: ChatMessage?) async -> String? {
         guard let message else { return nil }
-        let text = await MainActor.run { message.textContent }
-        guard !text.isEmpty else { return nil }
+
+        let (text, toolActions) = await MainActor.run {
+            let tools = message.content.compactMap { item -> String? in
+                if case .toolUse(let card) = item {
+                    return "\(card.toolName): \(card.summary)"
+                }
+                return nil
+            }
+            return (message.textContent, tools)
+        }
+
+        guard !text.isEmpty || !toolActions.isEmpty else { return nil }
 
         let fallback: String = {
-            let firstLine = text.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? text
-            return String(firstLine.prefix(80))
+            if !text.isEmpty {
+                let firstLine = text.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? text
+                return String(firstLine.prefix(80))
+            }
+            return toolActions.first.map { String($0.prefix(80)) } ?? "Checkpoint"
         }()
 
         guard SystemLanguageModel.default.isAvailable else { return fallback }
 
         do {
             let session = LanguageModelSession(
-                instructions: "You write concise changelog-style summaries for software checkpoints. Respond with a single sentence in past tense describing what was done. Be specific about files or features. No markdown, no quotes."
+                instructions: """
+                You write ultra-short git-commit-style summaries (2-6 words). Past tense. \
+                No filler words. No mentions of AI, assistant, or user. \
+                Focus on what actions were taken, NOT on file contents or explanations. \
+                Omit full paths — just use the filename or directory name. \
+                Examples: "Cloned kit-plugins", "Fixed login redirect bug", \
+                "Added dark mode to SettingsView", "Wrote PLUGIN_IDEAS.md".
+                """
             )
-            let truncated = String(text.prefix(2000))
+            var input = ""
+            if !toolActions.isEmpty {
+                input += "Tool actions:\n\(toolActions.joined(separator: "\n"))\n\n"
+            }
+            if !text.isEmpty {
+                input += "Assistant message:\n\(String(text.prefix(1000)))"
+            }
             let response = try await session.respond(
-                to: "Summarize what this AI coding assistant did in one sentence:\n\n\(truncated)"
+                to: "Summarize the action in as few words as possible:\n\n\(input)"
             )
-            let generated = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            let generated = response.content
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\\", with: "")
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`."))
             return generated.isEmpty ? fallback : String(generated.prefix(120))
         } catch {
             return fallback
