@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 import os
 import SwiftData
 
@@ -879,9 +880,9 @@ final class ChatViewModel {
 
             if turnHasMutations, let apiClient {
                 let assistantMsg = currentAssistantMessage
-                let comment = Self.checkpointComment(from: assistantMsg)
                 let sprite = spriteName
                 Task { [weak assistantMsg] in
+                    let comment = await Self.generateCheckpointComment(from: assistantMsg)
                     await self.createAutoCheckpoint(
                         apiClient: apiClient,
                         sprite: sprite,
@@ -928,10 +929,10 @@ final class ChatViewModel {
     func createCheckpoint(for message: ChatMessage, modelContext: ModelContext) {
         guard let apiClient, message.checkpointId == nil else { return }
         isCheckpointing = true
-        let comment = Self.checkpointComment(from: message)
         let sprite = spriteName
         Task { [weak message] in
             defer { self.isCheckpointing = false }
+            let comment = await Self.generateCheckpointComment(from: message)
             await self.createAutoCheckpoint(
                 apiClient: apiClient,
                 sprite: sprite,
@@ -942,13 +943,62 @@ final class ChatViewModel {
         }
     }
 
-    nonisolated static func checkpointComment(from message: ChatMessage?) -> String? {
+    /// Generates a changelog-style checkpoint comment using the on-device language model.
+    /// Falls back to the first-line truncation approach if the model is unavailable or fails.
+    static func generateCheckpointComment(from message: ChatMessage?) async -> String? {
         guard let message else { return nil }
-        // Must be called from @MainActor context — accessing textContent synchronously
-        let text = MainActor.assumeIsolated { message.textContent }
-        guard !text.isEmpty else { return nil }
-        let firstLine = text.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? text
-        return String(firstLine.prefix(80))
+
+        let (text, toolActions) = await MainActor.run {
+            let tools = message.content.compactMap { item -> String? in
+                if case .toolUse(let card) = item {
+                    return "\(card.toolName): \(card.summary)"
+                }
+                return nil
+            }
+            return (message.textContent, tools)
+        }
+
+        guard !text.isEmpty || !toolActions.isEmpty else { return nil }
+
+        let fallback: String = {
+            if !text.isEmpty {
+                let firstLine = text.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? text
+                return String(firstLine.prefix(80))
+            }
+            return toolActions.first.map { String($0.prefix(80)) } ?? "Checkpoint"
+        }()
+
+        guard SystemLanguageModel.default.isAvailable else { return fallback }
+
+        do {
+            let session = LanguageModelSession(
+                instructions: """
+                You write ultra-short git-commit-style summaries (2-6 words). Past tense. \
+                No filler words. No mentions of AI, assistant, or user. \
+                Focus on what actions were taken, NOT on file contents or explanations. \
+                Omit full paths — just use the filename or directory name. \
+                Examples: "Cloned kit-plugins", "Fixed login redirect bug", \
+                "Added dark mode to SettingsView", "Wrote PLUGIN_IDEAS.md".
+                """
+            )
+            var input = ""
+            if !toolActions.isEmpty {
+                input += "Tool actions:\n\(toolActions.joined(separator: "\n"))\n\n"
+            }
+            if !text.isEmpty {
+                input += "Assistant message:\n\(String(text.prefix(1000)))"
+            }
+            let response = try await session.respond(
+                to: "Summarize the action in as few words as possible:\n\n\(input)"
+            )
+            let generated = response.content
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\\", with: "")
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`."))
+            return generated.isEmpty ? fallback : String(generated.prefix(120))
+        } catch {
+            return fallback
+        }
     }
 
     private func fetchChat(modelContext: ModelContext) -> SpriteChat? {
