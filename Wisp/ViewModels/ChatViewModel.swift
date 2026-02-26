@@ -914,7 +914,8 @@ final class ChatViewModel {
             sessionId = resultEvent.sessionId
             saveSession(modelContext: modelContext)
 
-            if turnHasMutations, let apiClient {
+            let autoCheckpointEnabled = UserDefaults.standard.bool(forKey: "autoCheckpoint")
+            if turnHasMutations, autoCheckpointEnabled, let apiClient {
                 let assistantMsg = currentAssistantMessage
                 let sprite = spriteName
                 Task { [weak assistantMsg] in

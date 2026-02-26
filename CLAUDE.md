@@ -94,6 +94,7 @@ Phase 1 scope — build only these features:
 
 ## Conventions
 
+- Always add a `#Preview` macro at the bottom of every SwiftUI view file, wrapping in `NavigationStack` where needed and injecting any required environment objects
 - Always use idiomatic iOS UI/UX patterns — follow Apple's Human Interface Guidelines and standard platform conventions (e.g. tap-to-copy instead of copy buttons, swipe actions, pull-to-refresh, confirmation sheets for destructive actions)
 - Use SF Symbols for icons throughout
 - System colors and standard iOS chrome — no custom design system
@@ -105,6 +106,7 @@ Phase 1 scope — build only these features:
 - Tokens are org-scoped; org slug is embedded in the token string (e.g. `my-org/1290577/...`)
 - Working directory convention: `/home/sprite/project` for new Sprites, `/home/sprite/{repo}` for cloned repos
 - Run `mkdir -p /home/sprite/project` on first chat message if no project dir exists
+- Settings captions: when a setting needs an explanation, wrap the control and caption text together in a `VStack(alignment: .leading, spacing: 8)` inside the `Section`, with the caption styled `.font(.subheadline).foregroundStyle(.secondary)`.
 
 ## Testing
 

@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage("gitEmail") private var gitEmail: String = ""
     @AppStorage("customInstructions") private var customInstructions: String = ""
     @AppStorage("theme") private var theme: String = "system"
+    @AppStorage("autoCheckpoint") private var autoCheckpoint: Bool = false
     @State private var showSignOutConfirmation = false
     @State private var showGitHubConnect = false
     @State private var showGitHubDisconnectConfirmation = false
@@ -135,6 +136,13 @@ struct SettingsView: View {
                     Text("\(n)").tag(n)
                 }
             }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle("Auto-Checkpoint", isOn: $autoCheckpoint)
+                Text("Automatically take a checkpoint after Claude has written files.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -188,5 +196,12 @@ struct SettingsView: View {
         KeychainService.shared.delete(key: .claudeToken)
         KeychainService.shared.delete(key: .githubToken)
         apiClient.refreshAuthState()
+    }
+}
+
+#Preview {
+    NavigationStack {
+        SettingsView()
+            .environment(SpritesAPIClient())
     }
 }
