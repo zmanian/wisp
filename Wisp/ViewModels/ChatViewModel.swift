@@ -470,6 +470,7 @@ final class ChatViewModel {
 //        commandParts.append(Self.mcpSetupCommand)
 
         var claudeCmd = "claude -p --verbose --output-format stream-json --dangerously-skip-permissions"
+        claudeCmd += " --disallowedTools AskUserQuestion"
         claudeCmd += " --mcp-config ~/.wisp/mcp_config.json"
 
         let modelId = UserDefaults.standard.string(forKey: "claudeModel") ?? ClaudeModel.sonnet.rawValue
