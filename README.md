@@ -41,9 +41,11 @@ means we have all the flexibility of Sprites, through a mobile chat UX.
 - Create a new Sprite
 - Chat with Claude on any Sprite
 - Make the URL public and open it in Safari
-- View checkpoints, create a new one and restore to any checkpoint
+- View checkpoints, create a new one and restore to any checkpoint. Create a checkpoint from the chat.
+- Optional: automatically checkpoint after each turn where Claude wrote/edited files. 
 - Optional Github auth - if connected then every Sprite is authenticated automatically when created
-- Multiple simultaneous chats per Sprite 
+- Multiple simultaneous chats per Sprite
+- A custom version of Claude Code's AskUserQuestion tool where the app displays the options and responds
 
 ## How does Chat work?
 
