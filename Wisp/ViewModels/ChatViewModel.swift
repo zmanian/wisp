@@ -43,7 +43,7 @@ final class ChatViewModel {
     private var receivedSystemEvent = false
     private var receivedResultEvent = false
     private var usedResume = false
-    private var queuedPrompt: String?
+    var queuedPrompt: String?
     private var retriedAfterTimeout = false
     private var turnHasMutations = false
     private var pendingForkContext: String?
@@ -362,14 +362,16 @@ final class ChatViewModel {
         inputText = ""
         saveDraft(modelContext: modelContext)
         retriedAfterTimeout = false
-        let userMessage = ChatMessage(role: .user, content: [.text(text)])
-        messages.append(userMessage)
-        persistMessages(modelContext: modelContext)
 
         if isStreaming {
+            // Queue for later — don't add to messages yet; PendingUserBubbleView shows it
             queuedPrompt = text
             return
         }
+
+        let userMessage = ChatMessage(role: .user, content: [.text(text)])
+        messages.append(userMessage)
+        persistMessages(modelContext: modelContext)
 
         streamTask = Task {
             await executeClaudeCommand(prompt: text, apiClient: apiClient, modelContext: modelContext)
@@ -614,6 +616,9 @@ final class ChatViewModel {
 
         if let queued = queuedPrompt {
             queuedPrompt = nil
+            let userMessage = ChatMessage(role: .user, content: [.text(queued)])
+            messages.append(userMessage)
+            persistMessages(modelContext: modelContext)
             await executeClaudeCommand(prompt: queued, apiClient: apiClient, modelContext: modelContext)
         }
     }
@@ -877,6 +882,9 @@ final class ChatViewModel {
 
         if let queued = queuedPrompt, !Task.isCancelled {
             queuedPrompt = nil
+            let userMessage = ChatMessage(role: .user, content: [.text(queued)])
+            messages.append(userMessage)
+            persistMessages(modelContext: modelContext)
             await executeClaudeCommand(prompt: queued, apiClient: apiClient, modelContext: modelContext)
         }
     }
