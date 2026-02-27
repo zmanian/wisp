@@ -26,7 +26,6 @@
 		A1A2A3A4B5B6C7C800000001 /* ThinkingShimmerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A2A3A4B5B6C7C800000002 /* ThinkingShimmerView.swift */; };
 		A1A2A3A4B5B6C7C800000003 /* ToolStepRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A2A3A4B5B6C7C800000004 /* ToolStepRow.swift */; };
 		A1A2A3A4B5B6C7C800000005 /* ToolDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A2A3A4B5B6C7C800000006 /* ToolDetailSheet.swift */; };
-		A1A2A3A4B5B6C7C800000007 /* ScreenshotPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A2A3A4B5B6C7C800000008 /* ScreenshotPreviews.swift */; };
 		8F72503BCFF96CEF02334CA8 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540685D9D567596E24E4EF82 /* ChatViewModel.swift */; };
 		974996B0FB4D30828E89DD21 /* SpriteOverviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9BFD0F0AC39C136C9E828A /* SpriteOverviewViewModel.swift */; };
 		994D6CD07165B1FDF9AE7300 /* ChatInputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C308D530B9DAC21AD2A843B /* ChatInputBar.swift */; };
@@ -92,6 +91,8 @@
 		D1A2B3C4E5F60200BB000013 /* WispActivityWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60100AA000003 /* WispActivityWidgetBundle.swift */; };
 		D1A2B3C4E5F60200BB000014 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60100AA000007 /* LiveActivityManager.swift */; };
 		D1A2B3C4E5F60200BB000015 /* WispActivityWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60100AA000006 /* WispActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C4D5E6F7A8B90A41637E8FA2 /* CheckpointMarkerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */; };
+		D5E6F7A8B9C00B52748FA0B2 /* AutoCheckpointTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */; };
 		E1F2A3B4C5D6E7F800000012 /* WispCodeHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000001 /* WispCodeHighlighter.swift */; };
 		E1F2A3B4C5D6E7F800000013 /* WispMarkdownTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000002 /* WispMarkdownTheme.swift */; };
 		E1F2A3B4C5D6E7F800000014 /* UnifiedDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000003 /* UnifiedDiffView.swift */; };
@@ -179,7 +180,6 @@
 		A1A2A3A4B5B6C7C800000002 /* ThinkingShimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkingShimmerView.swift; sourceTree = "<group>"; };
 		A1A2A3A4B5B6C7C800000004 /* ToolStepRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolStepRow.swift; sourceTree = "<group>"; };
 		A1A2A3A4B5B6C7C800000006 /* ToolDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolDetailSheet.swift; sourceTree = "<group>"; };
-		A1A2A3A4B5B6C7C800000008 /* ScreenshotPreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotPreviews.swift; sourceTree = "<group>"; };
 		EA1634863D8543868BA11B02 /* CreateSpriteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateSpriteSheet.swift; sourceTree = "<group>"; };
 		EF49F7E0F4AC02FDF496D379 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		F1E2D3C4B5A60798192A3B4C /* PersistedChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistedChatMessage.swift; sourceTree = "<group>"; };
@@ -226,6 +226,8 @@
 		D1A2B3C4E5F60100AA000006 /* WispActivityWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WispActivityWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D1A2B3C4E5F60100AA000007 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		D1A2B3C4E5F60100AA000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckpointMarkerView.swift; sourceTree = "<group>"; };
+		D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoCheckpointTests.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000001 /* WispCodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispCodeHighlighter.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000002 /* WispMarkdownTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispMarkdownTheme.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000003 /* UnifiedDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffView.swift; sourceTree = "<group>"; };
@@ -471,6 +473,7 @@
 			isa = PBXGroup;
 			children = (
 				39E3CEEE606D9AFF4265AB76 /* AssistantMessageView.swift */,
+				C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */,
 				7C308D530B9DAC21AD2A843B /* ChatInputBar.swift */,
 				D9BC746AE628458445D34FCE /* ChatMessageView.swift */,
 				42C4A8D129C538233C34B2A6 /* ChatStatusBar.swift */,
@@ -551,6 +554,7 @@
 			children = (
 				AABB0011223344556677F007 /* APIModelTests.swift */,
 				AABB0011223344556677F009 /* AppErrorTests.swift */,
+				D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */,
 				FF11AA22BB33CC44DD55EE01 /* ChatViewModelHelpersTests.swift */,
 				FF11AA22BB33CC44DD55EE03 /* ChatViewModelTests.swift */,
 				B5C3D17E8A9FABC001D2E3F4 /* ClaudeModelTests.swift */,
@@ -760,7 +764,6 @@
 				A1A2A3A4B5B6C7C800000005 /* ToolDetailSheet.swift in Sources */,
 				3A36571818CB2EBA1ED78500 /* ToolInputDetailView.swift in Sources */,
 				A1A2A3A4B5B6C7C800000003 /* ToolStepRow.swift in Sources */,
-				A1A2A3A4B5B6C7C800000007 /* ScreenshotPreviews.swift in Sources */,
 				CAE817B1222FA7E85383EE25 /* ToolResultCardView.swift in Sources */,
 				A610B5413A578D4AA424595D /* ToolUseCardView.swift in Sources */,
 				E1F2A3B4C5D6E7F800000014 /* UnifiedDiffView.swift in Sources */,
@@ -773,6 +776,7 @@
 				B2C3D4E5F6A7081930DBFF02 /* SessionSuggestionsView.swift in Sources */,
 				D1A2B3C4E5F60200BB000010 /* WispActivityAttributes.swift in Sources */,
 				D1A2B3C4E5F60200BB000014 /* LiveActivityManager.swift in Sources */,
+				C4D5E6F7A8B90A41637E8FA2 /* CheckpointMarkerView.swift in Sources */,
 				C575C7232C5FCA1A3F18A9D8 /* WispApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -805,6 +809,7 @@
 				EE22FF334455AA66BB770002 /* ExecSessionURLTests.swift in Sources */,
 				E5F6A7B8C9D00B42637E8F91 /* SpriteChatListViewModelTests.swift in Sources */,
 				F6A7B8C9D0E10C53748F9002 /* SpriteChatMigrationTests.swift in Sources */,
+				D5E6F7A8B9C00B52748FA0B2 /* AutoCheckpointTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1127,7 +1132,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tree-sitter/swift-tree-sitter";
 			requirement = {
-				kind = upToNextMinorVersion;
+				kind = upToNextMajorVersion;
 				minimumVersion = 0.9.0;
 			};
 		};

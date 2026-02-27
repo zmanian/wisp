@@ -8,6 +8,7 @@ struct ChatView: View {
     var isReadOnly: Bool = false
     var topAccessory: AnyView? = nil
     var existingSessionIds: Set<String> = []
+    var onFork: ((String, UUID) -> Void)? = nil
     @FocusState private var isInputFocused: Bool
     @State private var contentOpacity: Double = 0
 
@@ -25,8 +26,12 @@ struct ChatView: View {
                         }
                     }
                     ForEach(viewModel.messages) { message in
-                        ChatMessageView(message: message)
-                            .id(message.id)
+                        messageView(message)
+                    }
+                    if viewModel.isStreaming {
+                        ThinkingShimmerView(label: viewModel.activeToolLabel ?? "Thinking...")
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            .id("shimmer")
                     }
                     if viewModel.isStreaming {
                         ThinkingShimmerView(label: viewModel.activeToolLabel ?? "Thinking...")
@@ -44,7 +49,12 @@ struct ChatView: View {
                 proxy.scrollTo("bottom")
             }
             .onChange(of: viewModel.messages.last?.content.count) {
-                if viewModel.messages.last?.isStreaming == true {
+                if viewModel.isStreaming {
+                    proxy.scrollTo("bottom")
+                }
+            }
+            .onChange(of: viewModel.activeToolLabel) {
+                if viewModel.isStreaming {
                     proxy.scrollTo("bottom")
                 }
             }
@@ -111,6 +121,29 @@ struct ChatView: View {
                     },
                     isFocused: $isInputFocused
                 )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func messageView(_ message: ChatMessage) -> some View {
+        let isLastAssistant = message.role == .assistant
+            && message.id == viewModel.messages.last(where: { $0.role == .assistant })?.id
+        ChatMessageView(
+            message: message,
+            isStreaming: viewModel.isStreaming && message.id == viewModel.currentAssistantMessageId,
+            onCreateCheckpoint: isLastAssistant ? {
+                viewModel.createCheckpoint(for: message, modelContext: modelContext)
+            } : nil,
+            isCheckpointDisabled: viewModel.isCheckpointing
+        )
+        .id(message.id)
+
+        if let checkpointId = message.checkpointId {
+            CheckpointMarkerView(
+                comment: message.checkpointComment
+            ) {
+                onFork?(checkpointId, message.id)
             }
         }
     }

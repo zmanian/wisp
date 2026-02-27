@@ -2,13 +2,21 @@ import SwiftUI
 
 struct ChatMessageView: View {
     let message: ChatMessage
+    var isStreaming: Bool = false
+    var onCreateCheckpoint: (() -> Void)? = nil
+    var isCheckpointDisabled: Bool = false
 
     var body: some View {
         switch message.role {
         case .user:
             UserBubbleView(message: message)
         case .assistant:
-            AssistantMessageView(message: message)
+            AssistantMessageView(
+                message: message,
+                isStreaming: isStreaming,
+                onCreateCheckpoint: onCreateCheckpoint,
+                isCheckpointDisabled: isCheckpointDisabled
+            )
         case .system:
             systemMessage
         }

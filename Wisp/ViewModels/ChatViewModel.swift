@@ -1,5 +1,6 @@
 import ActivityKit
 import Foundation
+import FoundationModels
 import os
 import SwiftData
 import UIKit
@@ -44,6 +45,9 @@ final class ChatViewModel {
     private var usedResume = false
     private var queuedPrompt: String?
     private var retriedAfterTimeout = false
+    private var turnHasMutations = false
+    private var pendingForkContext: String?
+    private var apiClient: SpritesAPIClient?
     /// UUIDs of Claude NDJSON events already processed.
     /// Used by reconnect to skip already-handled events instead of clearing content.
     private var processedEventUUIDs: Set<String> = []
@@ -81,7 +85,14 @@ final class ChatViewModel {
         return nil
     }
 
+    /// The ID of the message currently being built by a streaming response.
+    /// Views use this alongside `isStreaming` to show typing indicators on the right bubble.
+    var currentAssistantMessageId: UUID? {
+        currentAssistantMessage?.id
+    }
+
     func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
+        self.apiClient = apiClient
         guard let chat = fetchChat(modelContext: modelContext) else { return }
 
         sessionId = chat.claudeSessionId
@@ -98,6 +109,12 @@ final class ChatViewModel {
 
         if inputText.isEmpty, let draft = chat.draftInputText, !draft.isEmpty {
             inputText = draft
+        }
+
+        if let context = chat.forkContext, !context.isEmpty {
+            let notice = ChatMessage(role: .system, content: [.text("Forked from a previous chat")])
+            messages.insert(notice, at: 0)
+            pendingForkContext = context
         }
     }
 
@@ -370,9 +387,6 @@ final class ChatViewModel {
         streamTask?.cancel()
         streamTask = nil
 
-        if let msg = currentAssistantMessage {
-            msg.isStreaming = false
-        }
         currentAssistantMessage = nil
         status = .idle
 
@@ -431,7 +445,17 @@ final class ChatViewModel {
             return
         }
 
-        let escapedPrompt = prompt
+        var fullPrompt = prompt
+        if let forkCtx = pendingForkContext {
+            fullPrompt = forkCtx + "\n\n---\n\n" + prompt
+            pendingForkContext = nil
+            if let chat = fetchChat(modelContext: modelContext) {
+                chat.forkContext = nil
+                try? modelContext.save()
+            }
+        }
+
+        let escapedPrompt = fullPrompt
             .replacingOccurrences(of: "'", with: "'\\''")
 
         // Build the full bash -c command with env vars inlined
@@ -440,6 +464,17 @@ final class ChatViewModel {
             "mkdir -p \(workingDirectory)",
             "cd \(workingDirectory)",
         ]
+
+        let gitName = UserDefaults.standard.string(forKey: "gitName") ?? ""
+        let gitEmail = UserDefaults.standard.string(forKey: "gitEmail") ?? ""
+        if !gitName.isEmpty {
+            let escapedName = gitName.replacingOccurrences(of: "'", with: "'\\''")
+            commandParts.append("git config --global user.name '\(escapedName)'")
+        }
+        if !gitEmail.isEmpty {
+            let escapedEmail = gitEmail.replacingOccurrences(of: "'", with: "'\\''")
+            commandParts.append("git config --global user.email '\(escapedEmail)'")
+        }
 
         var claudeCmd = "claude -p --verbose --output-format stream-json --dangerously-skip-permissions"
 
@@ -468,6 +503,7 @@ final class ChatViewModel {
 
         receivedSystemEvent = false
         receivedResultEvent = false
+        turnHasMutations = false
         processedEventUUIDs = []
         hasPlayedFirstTextHaptic = false
 
@@ -492,7 +528,7 @@ final class ChatViewModel {
             config: config
         )
 
-        let assistantMessage = ChatMessage(role: .assistant, isStreaming: true)
+        let assistantMessage = ChatMessage(role: .assistant)
         messages.append(assistantMessage)
         currentAssistantMessage = assistantMessage
 
@@ -504,7 +540,6 @@ final class ChatViewModel {
         // The reconnect task now owns the assistant message and shared state.
         guard !Task.isCancelled else { return }
 
-        assistantMessage.isStreaming = false
         if currentAssistantMessage?.id == assistantMessage.id {
             currentAssistantMessage = nil
         }
@@ -748,14 +783,12 @@ final class ChatViewModel {
         if let existing = currentAssistantMessage {
             assistantMessage = existing
             if !hasPriorEvents { assistantMessage.content = [] }
-            assistantMessage.isStreaming = true
         } else if let last = messages.last(where: { $0.role == .assistant }) {
             assistantMessage = last
             if !hasPriorEvents { assistantMessage.content = [] }
-            assistantMessage.isStreaming = true
             currentAssistantMessage = last
         } else {
-            assistantMessage = ChatMessage(role: .assistant, isStreaming: true)
+            assistantMessage = ChatMessage(role: .assistant)
             messages.append(assistantMessage)
             currentAssistantMessage = assistantMessage
         }
@@ -808,7 +841,6 @@ final class ChatViewModel {
         }
 
         // Finalize
-        assistantMessage.isStreaming = false
         if currentAssistantMessage?.id == assistantMessage.id {
             currentAssistantMessage = nil
         }
@@ -862,6 +894,9 @@ final class ChatViewModel {
                         messageIndex: messages.count - 1,
                         toolName: toolUse.name
                     )
+                    if ["Write", "Edit"].contains(toolUse.name) {
+                        turnHasMutations = true
+                    }
                     // Live Activity: update with new tool step
                     liveActivityBottomText = card.activityLabel
                     liveActivityCurrentIcon = card.iconName
@@ -904,14 +939,132 @@ final class ChatViewModel {
                 logger.error("Claude result error: \(resultEvent.result ?? "unknown", privacy: .public)")
             }
             receivedResultEvent = true
-            currentAssistantMessage?.isStreaming = false
             sessionId = resultEvent.sessionId
             saveSession(modelContext: modelContext)
             // Live Activity: fallback end if text block didn't end it
             LiveActivityManager.shared.endActivity()
 
+            let autoCheckpointEnabled = UserDefaults.standard.bool(forKey: "autoCheckpoint")
+            if turnHasMutations, autoCheckpointEnabled, let apiClient {
+                let assistantMsg = currentAssistantMessage
+                let sprite = spriteName
+                Task { [weak assistantMsg] in
+                    let comment = await Self.generateCheckpointComment(from: assistantMsg)
+                    await self.createAutoCheckpoint(
+                        apiClient: apiClient,
+                        sprite: sprite,
+                        comment: comment,
+                        assistantMessage: assistantMsg,
+                        modelContext: modelContext
+                    )
+                }
+            }
+
         case .unknown:
             break
+        }
+    }
+
+    // MARK: - Auto-Checkpoints
+
+    private func createAutoCheckpoint(
+        apiClient: SpritesAPIClient,
+        sprite: String,
+        comment: String?,
+        assistantMessage: ChatMessage?,
+        modelContext: ModelContext
+    ) async {
+        do {
+            try await apiClient.createCheckpoint(spriteName: sprite, comment: comment)
+            let checkpoints = try await apiClient.listCheckpoints(spriteName: sprite)
+            let newest = checkpoints
+                .filter { $0.id != "Current" }
+                .sorted { ($0.createTime ?? .distantPast) > ($1.createTime ?? .distantPast) }
+                .first
+            if let cp = newest {
+                assistantMessage?.checkpointId = cp.id
+                assistantMessage?.checkpointComment = comment
+                persistMessages(modelContext: modelContext)
+            }
+        } catch {
+            logger.error("Auto-checkpoint failed: \(error.localizedDescription)")
+        }
+    }
+
+    var isCheckpointing = false
+
+    func createCheckpoint(for message: ChatMessage, modelContext: ModelContext) {
+        guard let apiClient, message.checkpointId == nil else { return }
+        isCheckpointing = true
+        let sprite = spriteName
+        Task { [weak message] in
+            defer { self.isCheckpointing = false }
+            let comment = await Self.generateCheckpointComment(from: message)
+            await self.createAutoCheckpoint(
+                apiClient: apiClient,
+                sprite: sprite,
+                comment: comment,
+                assistantMessage: message,
+                modelContext: modelContext
+            )
+        }
+    }
+
+    /// Generates a changelog-style checkpoint comment using the on-device language model.
+    /// Falls back to the first-line truncation approach if the model is unavailable or fails.
+    static func generateCheckpointComment(from message: ChatMessage?) async -> String? {
+        guard let message else { return nil }
+
+        let (text, toolActions) = await MainActor.run {
+            let tools = message.content.compactMap { item -> String? in
+                if case .toolUse(let card) = item {
+                    return "\(card.toolName): \(card.summary)"
+                }
+                return nil
+            }
+            return (message.textContent, tools)
+        }
+
+        guard !text.isEmpty || !toolActions.isEmpty else { return nil }
+
+        let fallback: String = {
+            if !text.isEmpty {
+                let firstLine = text.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? text
+                return String(firstLine.prefix(80))
+            }
+            return toolActions.first.map { String($0.prefix(80)) } ?? "Checkpoint"
+        }()
+
+        guard SystemLanguageModel.default.isAvailable else { return fallback }
+
+        do {
+            let session = LanguageModelSession(
+                instructions: """
+                You write ultra-short git-commit-style summaries (2-6 words). Past tense. \
+                No filler words. No mentions of AI, assistant, or user. \
+                Focus on what actions were taken, NOT on file contents or explanations. \
+                Omit full paths — just use the filename or directory name. \
+                Examples: "Cloned kit-plugins", "Fixed login redirect bug", \
+                "Added dark mode to SettingsView", "Wrote PLUGIN_IDEAS.md".
+                """
+            )
+            var input = ""
+            if !toolActions.isEmpty {
+                input += "Tool actions:\n\(toolActions.joined(separator: "\n"))\n\n"
+            }
+            if !text.isEmpty {
+                input += "Assistant message:\n\(String(text.prefix(1000)))"
+            }
+            let response = try await session.respond(
+                to: "Summarize the action in as few words as possible:\n\n\(input)"
+            )
+            let generated = response.content
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\\", with: "")
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`."))
+            return generated.isEmpty ? fallback : String(generated.prefix(120))
+        } catch {
+            return fallback
         }
     }
 

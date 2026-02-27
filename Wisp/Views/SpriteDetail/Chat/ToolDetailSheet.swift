@@ -49,6 +49,7 @@ struct ToolDetailSheet: View {
                 .foregroundStyle(.secondary)
 
             ToolInputDetailView(toolName: card.toolName, input: card.input)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
                 .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 8))
         }
