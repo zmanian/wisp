@@ -47,7 +47,7 @@ final class ChatViewModel {
     private var turnHasMutations = false
     private var pendingForkContext: String?
     private var apiClient: SpritesAPIClient?
-    private var mcpSetupTask: Task<Void, Never>?
+    private var mcpSetupTask: Task<Bool, Never>?
     /// UUIDs of Claude NDJSON events already processed.
     /// Used by reconnect to skip already-handled events instead of clearing content.
     private var processedEventUUIDs: Set<String> = []
@@ -87,8 +87,8 @@ final class ChatViewModel {
         self.apiClient = apiClient
         if UserDefaults.standard.bool(forKey: "claudeQuestionTool") {
             mcpSetupTask = Task { [weak self] in
-                guard let self else { return }
-                await self.installClaudeQuestionToolIfNeeded(apiClient: apiClient)
+                guard let self else { return false }
+                return await self.installClaudeQuestionToolIfNeeded(apiClient: apiClient)
             }
         }
         guard let chat = fetchChat(modelContext: modelContext) else { return }
@@ -432,7 +432,11 @@ final class ChatViewModel {
 
         // Wait for MCP setup to finish (no-op if setup task not running or already done)
         if UserDefaults.standard.bool(forKey: "claudeQuestionTool") {
-            await mcpSetupTask?.value
+            let toolReady = await mcpSetupTask?.value ?? false
+            if !toolReady {
+                status = .error("Claude question tool failed to install — disable it in Settings or try again")
+                return
+            }
         }
 
         // Delete old service, then use a fresh name so logs start clean
@@ -1004,7 +1008,11 @@ final class ChatViewModel {
             let jsonObject = ["answer": answer]
             guard let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject) else { return }
             let path = ClaudeQuestionTool.responseFilePath(for: sessionId)
-            _ = try? await apiClient.uploadFile(spriteName: sprite, remotePath: path, data: jsonData)
+            do {
+                _ = try await apiClient.uploadFile(spriteName: sprite, remotePath: path, data: jsonData)
+            } catch {
+                status = .error("Failed to send answer — try again")
+            }
         }
     }
 
@@ -1155,33 +1163,39 @@ final class ChatViewModel {
     }
     #endif
 
-    private func installClaudeQuestionToolIfNeeded(apiClient: SpritesAPIClient) async {
+    private func installClaudeQuestionToolIfNeeded(apiClient: SpritesAPIClient) async -> Bool {
         let (output, _) = await apiClient.runExec(
             spriteName: spriteName,
             command: ClaudeQuestionTool.checkVersionCommand,
             timeout: 10
         )
         guard output.trimmingCharacters(in: .whitespacesAndNewlines) != ClaudeQuestionTool.version else {
-            return  // already up to date
+            return true  // already up to date
         }
         logger.info("Installing Claude question tool (version \(ClaudeQuestionTool.version))...")
-        // Write files directly via the REST filesystem API to avoid shell command length limits
-        try? await apiClient.uploadFile(
-            spriteName: spriteName,
-            remotePath: ClaudeQuestionTool.serverPyPath,
-            data: Data(ClaudeQuestionTool.serverScript.utf8)
-        )
-        try? await apiClient.uploadFile(
-            spriteName: spriteName,
-            remotePath: ClaudeQuestionTool.versionPath,
-            data: Data(ClaudeQuestionTool.version.utf8)
-        )
+        do {
+            // Write files directly via the REST filesystem API to avoid shell command length limits
+            try await apiClient.uploadFile(
+                spriteName: spriteName,
+                remotePath: ClaudeQuestionTool.serverPyPath,
+                data: Data(ClaudeQuestionTool.serverScript.utf8)
+            )
+            try await apiClient.uploadFile(
+                spriteName: spriteName,
+                remotePath: ClaudeQuestionTool.versionPath,
+                data: Data(ClaudeQuestionTool.version.utf8)
+            )
+        } catch {
+            logger.error("Claude question tool installation failed: \(error)")
+            return false
+        }
         // Make server.py executable
         _ = await apiClient.runExec(
             spriteName: spriteName,
             command: ClaudeQuestionTool.chmodCommand,
             timeout: 10
         )
+        return true
     }
 }
 

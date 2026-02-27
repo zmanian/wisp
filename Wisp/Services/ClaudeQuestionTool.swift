@@ -1,7 +1,7 @@
 import Foundation
 
 enum ClaudeQuestionTool {
-    static let version = "2"
+    static let version = "3"
 
     // Full Python MCP server source — human-readable
     static let serverScript = """
@@ -89,9 +89,9 @@ enum ClaudeQuestionTool {
                         resp = json.load(f)
                     answer = resp.get("answer", answer)
                     os.remove(RESPONSE_FILE)
+                    break  # only break on successful parse; retry if file is still being written
                 except (OSError, json.JSONDecodeError):
                     pass
-                break
             time.sleep(0.2)
 
         # Clean up question file
