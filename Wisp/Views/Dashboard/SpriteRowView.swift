@@ -2,11 +2,27 @@ import SwiftUI
 
 struct SpriteRowView: View {
     let sprite: Sprite
+    var isPlain: Bool = false
     var isSelected: Bool = false
 
     @State private var isPulsing = false
 
     var body: some View {
+        if isPlain {
+            rowContent.onAppear { startPulsingIfNeeded() }
+                .onChange(of: sprite.status) { _, newValue in isPulsing = newValue == .running }
+        } else {
+            rowContent
+                .padding(14)
+                .background(isSelected ? Color.accentColor.opacity(0.15) : Color(.systemGray6), in: RoundedRectangle(cornerRadius: 14))
+                .glassEffect(in: .rect(cornerRadius: 14))
+                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+                .onAppear { startPulsingIfNeeded() }
+                .onChange(of: sprite.status) { _, newValue in isPulsing = newValue == .running }
+        }
+    }
+
+    private var rowContent: some View {
         HStack {
             Image(systemName: "circle.fill")
                 .font(.system(size: 10))
@@ -23,11 +39,12 @@ struct SpriteRowView: View {
                 Text(sprite.name)
                     .font(.body)
                     .fontWeight(.medium)
+                    .foregroundStyle(isPlain ? AnyShapeStyle(.primary) : AnyShapeStyle(Color.primary))
 
                 if let createdAt = sprite.createdAt {
                     Text(createdAt.relativeFormatted)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isPlain ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.secondary))
                 }
             }
 
@@ -40,19 +57,11 @@ struct SpriteRowView: View {
                 .padding(.vertical, 3)
                 .background(statusColor.opacity(0.15), in: Capsule())
         }
-        .padding(14)
-        .background(isSelected ? Color.accentColor.opacity(0.15) : Color(.systemGray6), in: RoundedRectangle(cornerRadius: 14))
-        .glassEffect(in: .rect(cornerRadius: 14))
-        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
-        .onAppear {
-            if sprite.status == .running {
-                DispatchQueue.main.async {
-                    isPulsing = true
-                }
-            }
-        }
-        .onChange(of: sprite.status) { _, newValue in
-            isPulsing = newValue == .running
+    }
+
+    private func startPulsingIfNeeded() {
+        if sprite.status == .running {
+            DispatchQueue.main.async { isPulsing = true }
         }
     }
 

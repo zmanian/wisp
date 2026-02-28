@@ -12,6 +12,11 @@ struct SpriteNavigationPanel: View {
     @Binding var selection: SpriteNavSelection?
     let chatListViewModel: SpriteChatListViewModel
     let onCreateChat: () -> Void
+    @Environment(SpritesAPIClient.self) private var apiClient
+    @Environment(\.modelContext) private var modelContext
+    @State private var chatToRename: SpriteChat?
+    @State private var renameText = ""
+    @State private var chatToDelete: SpriteChat?
 
     private var openChats: [SpriteChat] {
         chatListViewModel.chats.filter { !$0.isClosed }
@@ -48,6 +53,19 @@ struct SpriteNavigationPanel: View {
             }
         }
         .listStyle(.sidebar)
+        .alert("Rename Chat", isPresented: Binding(
+            get: { chatToRename != nil },
+            set: { if !$0 { chatToRename = nil } }
+        )) {
+            TextField("Chat name", text: $renameText)
+            Button("Save") {
+                if let chat = chatToRename {
+                    chatListViewModel.renameChat(chat, name: renameText, modelContext: modelContext)
+                    chatToRename = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { chatToRename = nil }
+        }
     }
 
     @ViewBuilder
@@ -69,6 +87,44 @@ struct SpriteNavigationPanel: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
+        }
+        .contextMenu {
+            Button {
+                renameText = chat.customName ?? ""
+                chatToRename = chat
+            } label: {
+                Label("Rename", systemImage: "pencil")
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                chatToDelete = chat
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            if !chat.isClosed {
+                Button {
+                    chatListViewModel.closeChat(chat, apiClient: apiClient, modelContext: modelContext)
+                } label: {
+                    Label("Close", systemImage: "xmark.circle")
+                }
+                .tint(.orange)
+            }
+        }
+        .confirmationDialog(
+            "Delete Chat",
+            isPresented: Binding(
+                get: { chatToDelete?.id == chat.id },
+                set: { if !$0 { chatToDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                chatListViewModel.deleteChat(chat, apiClient: apiClient, modelContext: modelContext)
+                chatToDelete = nil
+            }
+        } message: {
+            Text("This will permanently delete the chat and its history.")
         }
     }
 }

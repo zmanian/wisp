@@ -33,37 +33,41 @@ struct DashboardView: View {
                         description: Text("Create a Sprite to get started")
                     )
                 } else {
-                    List {
+                    List(selection: $selectedSpriteID) {
                         ForEach(sortedSprites) { sprite in
-                            SpriteRowView(sprite: sprite, isSelected: selectedSpriteID == sprite.id)
-                                .onTapGesture { selectedSpriteID = sprite.id }
-                                .swipeActions(edge: .trailing) {
-                                    Button("Delete") {
-                                        viewModel.spriteToDelete = sprite
-                                    }
-                                    .tint(.red)
+                            SpriteRowView(
+                                sprite: sprite,
+                                isPlain: sizeClass == .regular,
+                                isSelected: sizeClass != .regular && selectedSpriteID == sprite.id
+                            )
+                            .tag(sprite.id)
+                            .swipeActions(edge: .trailing) {
+                                Button("Delete") {
+                                    viewModel.spriteToDelete = sprite
                                 }
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        viewModel.spriteToDelete = sprite
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .tint(.red)
+                            }
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    viewModel.spriteToDelete = sprite
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
                                 }
-                                .confirmationDialog("Delete Sprite?", isPresented: .init(
-                                    get: { viewModel.spriteToDelete?.id == sprite.id },
-                                    set: { if !$0 { viewModel.spriteToDelete = nil } }
-                                )) {
-                                    Button("Delete", role: .destructive) {
-                                        Task { await viewModel.deleteSprite(sprite, apiClient: apiClient) }
-                                    }
-                                } message: {
-                                    Text("This will permanently delete \"\(sprite.name)\". This action cannot be undone.")
+                            }
+                            .confirmationDialog("Delete Sprite?", isPresented: .init(
+                                get: { viewModel.spriteToDelete?.id == sprite.id },
+                                set: { if !$0 { viewModel.spriteToDelete = nil } }
+                            )) {
+                                Button("Delete", role: .destructive) {
+                                    Task { await viewModel.deleteSprite(sprite, apiClient: apiClient) }
                                 }
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                .id(sprite.id)
+                            } message: {
+                                Text("This will permanently delete \"\(sprite.name)\". This action cannot be undone.")
+                            }
+                            .listRowSeparator(sizeClass == .regular ? .automatic : .hidden)
+                            .listRowBackground(sizeClass == .regular ? nil : Color.clear)
+                            .listRowInsets(sizeClass == .regular ? nil : EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .id(sprite.id)
                         }
                     }
                     .listStyle(.plain)
