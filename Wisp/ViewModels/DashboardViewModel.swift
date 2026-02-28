@@ -11,6 +11,7 @@ final class DashboardViewModel {
     var spriteToDelete: Sprite?
 
     func loadSprites(apiClient: SpritesAPIClient) async {
+        guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
 
@@ -18,6 +19,17 @@ final class DashboardViewModel {
             sprites = try await apiClient.listSprites()
         } catch {
             errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+
+    func refreshSprites(apiClient: SpritesAPIClient) async {
+        guard !isLoading else { return }
+        isLoading = true
+
+        if let updated = try? await apiClient.listSprites() {
+            sprites = updated
         }
 
         isLoading = false

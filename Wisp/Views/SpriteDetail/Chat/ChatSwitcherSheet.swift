@@ -30,6 +30,19 @@ struct ChatSwitcherSheet: View {
                         } label: {
                             Label("Rename", systemImage: "pencil")
                         }
+                        if !chat.isClosed {
+                            Button {
+                                viewModel.closeChat(chat, apiClient: apiClient, modelContext: modelContext)
+                            } label: {
+                                Label("Close", systemImage: "xmark.circle")
+                            }
+                        }
+                        Divider()
+                        Button(role: .destructive) {
+                            chatToDelete = chat
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button {
