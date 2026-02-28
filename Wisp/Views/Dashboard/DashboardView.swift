@@ -73,14 +73,6 @@ struct DashboardView: View {
                     }
                 }
             }
-            .background(
-                LinearGradient(
-                    colors: [Color(.systemBackground), Color.accentColor.opacity(0.06)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-            )
             .navigationTitle("Sprites")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
