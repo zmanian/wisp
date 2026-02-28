@@ -40,7 +40,7 @@ struct ChatInputBar: View {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.title2)
             }
-            .tint(isEmpty || hasQueuedMessage ? .gray : .blue)
+            .tint(isEmpty || hasQueuedMessage ? .gray : Color("AccentColor"))
             .disabled(isEmpty || hasQueuedMessage)
             .buttonStyle(.glass)
         }
