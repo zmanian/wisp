@@ -95,6 +95,19 @@ struct SpriteNavigationPanel: View {
             } label: {
                 Label("Rename", systemImage: "pencil")
             }
+            if !chat.isClosed {
+                Button {
+                    chatListViewModel.closeChat(chat, apiClient: apiClient, modelContext: modelContext)
+                } label: {
+                    Label("Close", systemImage: "xmark.circle")
+                }
+            }
+            Divider()
+            Button(role: .destructive) {
+                chatToDelete = chat
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
