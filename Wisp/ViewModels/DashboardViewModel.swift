@@ -11,6 +11,7 @@ final class DashboardViewModel {
     var spriteToDelete: Sprite?
 
     func loadSprites(apiClient: SpritesAPIClient) async {
+        guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
 

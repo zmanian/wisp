@@ -130,6 +130,12 @@ struct DashboardView: View {
         .task {
             await viewModel.loadSprites(apiClient: apiClient)
         }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                await viewModel.loadSprites(apiClient: apiClient)
+            }
+        }
         .sheet(isPresented: $viewModel.showCreateSheet) {
             CreateSpriteSheet()
                 .onDisappear {
