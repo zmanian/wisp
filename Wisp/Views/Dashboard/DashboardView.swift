@@ -9,6 +9,7 @@ struct DashboardView: View {
     @Environment(SpritesAPIClient.self) private var apiClient
     @State private var viewModel = DashboardViewModel()
     @State private var selectedSpriteID: String?
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var sortOrder: SpriteSortOrder = .newest
     @State private var showSettings = false
 
@@ -22,7 +23,7 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             Group {
                 if viewModel.sprites.isEmpty && !viewModel.isLoading {
                     ContentUnavailableView(
@@ -121,6 +122,9 @@ struct DashboardView: View {
             if let id = selectedSpriteID, !newSprites.contains(where: { $0.id == id }) {
                 selectedSpriteID = nil
             }
+        }
+        .onChange(of: selectedSpriteID) { _, newID in
+            columnVisibility = newID != nil ? .detailOnly : .all
         }
         .task {
             await viewModel.loadSprites(apiClient: apiClient)

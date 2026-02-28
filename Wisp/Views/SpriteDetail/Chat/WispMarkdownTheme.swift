@@ -4,6 +4,9 @@ import SwiftUI
 extension Theme {
     @MainActor static var wisp: Theme {
         Theme.gitHub
+            .text {
+                BackgroundColor(.clear)
+            }
             .code {
                 FontFamilyVariant(.monospaced)
                 FontSize(.em(0.85))
