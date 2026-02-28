@@ -91,6 +91,7 @@
 		B2C3D4E5F6A7081930DBFF02 /* SessionSuggestionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7081930DBFF01 /* SessionSuggestionsView.swift */; };
 		C4D5E6F7A8B90A41637E8FA2 /* CheckpointMarkerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */; };
 		D5E6F7A8B9C00B52748FA0B2 /* AutoCheckpointTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */; };
+		E7F8A9B0C1D2E3F405A6B7C2 /* ChatNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F8A9B0C1D2E3F405A6B7C1 /* ChatNameTests.swift */; };
 		E1F2A3B4C5D6E7F800000012 /* WispCodeHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000001 /* WispCodeHighlighter.swift */; };
 		E1F2A3B4C5D6E7F800000013 /* WispMarkdownTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000002 /* WispMarkdownTheme.swift */; };
 		E1F2A3B4C5D6E7F800000014 /* UnifiedDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000003 /* UnifiedDiffView.swift */; };
@@ -215,6 +216,7 @@
 		B2C3D4E5F6A7081930DBFF01 /* SessionSuggestionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSuggestionsView.swift; sourceTree = "<group>"; };
 		C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckpointMarkerView.swift; sourceTree = "<group>"; };
 		D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoCheckpointTests.swift; sourceTree = "<group>"; };
+		E7F8A9B0C1D2E3F405A6B7C1 /* ChatNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatNameTests.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000001 /* WispCodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispCodeHighlighter.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000002 /* WispMarkdownTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispMarkdownTheme.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000003 /* UnifiedDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffView.swift; sourceTree = "<group>"; };
@@ -499,6 +501,7 @@
 				AABB0011223344556677F007 /* APIModelTests.swift */,
 				AABB0011223344556677F009 /* AppErrorTests.swift */,
 				D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */,
+				E7F8A9B0C1D2E3F405A6B7C1 /* ChatNameTests.swift */,
 				FF11AA22BB33CC44DD55EE01 /* ChatViewModelHelpersTests.swift */,
 				FF11AA22BB33CC44DD55EE03 /* ChatViewModelTests.swift */,
 				BB33CC44DD55EE66FF770002 /* WispAskTests.swift */,
@@ -720,6 +723,7 @@
 				E5F6A7B8C9D00B42637E8F91 /* SpriteChatListViewModelTests.swift in Sources */,
 				F6A7B8C9D0E10C53748F9002 /* SpriteChatMigrationTests.swift in Sources */,
 				D5E6F7A8B9C00B52748FA0B2 /* AutoCheckpointTests.swift in Sources */,
+				E7F8A9B0C1D2E3F405A6B7C2 /* ChatNameTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
