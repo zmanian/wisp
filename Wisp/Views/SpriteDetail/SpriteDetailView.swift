@@ -3,7 +3,7 @@ import SwiftData
 
 struct SpriteDetailView: View {
     let sprite: Sprite
-    @State private var selectedTab: SpriteTab = .chat
+    @Binding var selectedTab: SpriteTab
     @State private var chatListViewModel: SpriteChatListViewModel
     @State private var chatViewModel: ChatViewModel?
     @State private var checkpointsViewModel: CheckpointsViewModel
@@ -18,8 +18,9 @@ struct SpriteDetailView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    init(sprite: Sprite) {
+    init(sprite: Sprite, selectedTab: Binding<SpriteTab>) {
         self.sprite = sprite
+        _selectedTab = selectedTab
         _chatListViewModel = State(initialValue: SpriteChatListViewModel(spriteName: sprite.name))
         _checkpointsViewModel = State(initialValue: CheckpointsViewModel(spriteName: sprite.name))
     }
@@ -68,8 +69,10 @@ struct SpriteDetailView: View {
 
             Divider()
 
+            if selectedTab != .chat { Spacer(minLength: 0) }
             tabContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: selectedTab == .chat ? .infinity : 680, maxHeight: .infinity)
+            if selectedTab != .chat { Spacer(minLength: 0) }
         }
     }
 

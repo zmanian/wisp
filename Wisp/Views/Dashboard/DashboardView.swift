@@ -7,9 +7,10 @@ enum SpriteSortOrder: String, CaseIterable {
 
 struct DashboardView: View {
     @Environment(SpritesAPIClient.self) private var apiClient
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var viewModel = DashboardViewModel()
     @State private var selectedSpriteID: String?
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var selectedTab: SpriteTab = .chat
     @State private var sortOrder: SpriteSortOrder = .newest
     @State private var showSettings = false
 
@@ -23,7 +24,7 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView {
             Group {
                 if viewModel.sprites.isEmpty && !viewModel.isLoading {
                     ContentUnavailableView(
@@ -32,10 +33,10 @@ struct DashboardView: View {
                         description: Text("Create a Sprite to get started")
                     )
                 } else {
-                    List(selection: $selectedSpriteID) {
+                    List {
                         ForEach(sortedSprites) { sprite in
-                            SpriteRowView(sprite: sprite)
-                                .tag(sprite.id)
+                            SpriteRowView(sprite: sprite, isSelected: selectedSpriteID == sprite.id)
+                                .onTapGesture { selectedSpriteID = sprite.id }
                                 .swipeActions(edge: .trailing) {
                                     Button("Delete") {
                                         viewModel.spriteToDelete = sprite
@@ -62,6 +63,7 @@ struct DashboardView: View {
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
                                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .id(sprite.id)
                         }
                     }
                     .listStyle(.plain)
@@ -109,7 +111,8 @@ struct DashboardView: View {
             }
         } detail: {
             if let id = selectedSpriteID, let selectedSprite = sortedSprites.first(where: { $0.id == id }) {
-                SpriteDetailView(sprite: selectedSprite)
+                SpriteDetailView(sprite: selectedSprite, selectedTab: $selectedTab)
+                    .id(id)
             } else {
                 ContentUnavailableView(
                     "Select a Sprite",
@@ -123,8 +126,10 @@ struct DashboardView: View {
                 selectedSpriteID = nil
             }
         }
-        .onChange(of: selectedSpriteID) { _, newID in
-            columnVisibility = newID != nil ? .detailOnly : .all
+        .onChange(of: selectedSpriteID) { _, _ in
+            if sizeClass != .regular {
+                selectedTab = .chat
+            }
         }
         .task {
             await viewModel.loadSprites(apiClient: apiClient)

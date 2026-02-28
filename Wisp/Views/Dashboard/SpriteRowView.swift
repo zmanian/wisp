@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SpriteRowView: View {
     let sprite: Sprite
+    var isSelected: Bool = false
 
     @State private var isPulsing = false
 
@@ -40,7 +41,7 @@ struct SpriteRowView: View {
                 .background(statusColor.opacity(0.15), in: Capsule())
         }
         .padding(14)
-        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 14))
+        .background(isSelected ? Color.accentColor.opacity(0.15) : Color(.systemGray6), in: RoundedRectangle(cornerRadius: 14))
         .glassEffect(in: .rect(cornerRadius: 14))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
         .onAppear {

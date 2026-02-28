@@ -20,6 +20,7 @@ struct ChatInputBar: View {
                 .textFieldStyle(.plain)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
+                .frame(minHeight: 36)
                 .glassEffect(in: .rect(cornerRadius: 20))
                 .disabled(hasQueuedMessage)
 
@@ -45,5 +46,14 @@ struct ChatInputBar: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 4)
+        .padding(.bottom, isRunningOnMac ? 12 : 0)
+    }
+
+    private var isRunningOnMac: Bool {
+        #if targetEnvironment(macCatalyst)
+        true
+        #else
+        ProcessInfo.processInfo.isiOSAppOnMac
+        #endif
     }
 }
