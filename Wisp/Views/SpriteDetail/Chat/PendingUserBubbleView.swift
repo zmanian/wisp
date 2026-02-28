@@ -6,9 +6,10 @@ struct PendingUserBubbleView: View {
     let onCancel: () -> Void
 
     @State private var dragOffset: CGFloat = 0
-    @GestureState private var isDragging = false
 
     private let dismissThreshold: CGFloat = 80
+    private let dismissOffset: CGFloat = 400
+    private let dismissDuration: TimeInterval = 0.2
 
     var body: some View {
         HStack {
@@ -38,9 +39,6 @@ struct PendingUserBubbleView: View {
         .opacity(1 - Double(min(abs(dragOffset) / dismissThreshold, 1)) * 0.5)
         .gesture(
             DragGesture(minimumDistance: 20)
-                .updating($isDragging) { _, state, _ in
-                    state = true
-                }
                 .onChanged { value in
                     if value.translation.width > 0 {
                         dragOffset = value.translation.width
@@ -48,10 +46,11 @@ struct PendingUserBubbleView: View {
                 }
                 .onEnded { value in
                     if value.translation.width > dismissThreshold {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            dragOffset = 400
+                        withAnimation(.easeOut(duration: dismissDuration)) {
+                            dragOffset = dismissOffset
                         }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        Task {
+                            try? await Task.sleep(for: .seconds(dismissDuration))
                             onCancel()
                         }
                     } else {
