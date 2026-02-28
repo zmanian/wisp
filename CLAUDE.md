@@ -103,6 +103,16 @@ Phase 1 scope — build only these features:
 - Tool use cards are collapsible/expandable inline elements between chat bubbles
 - Show loading states for Sprite wake-up ("Waking Sprite..." for cold starts, ~1s)
 - Destructive actions (delete Sprite, restore checkpoint) always require confirmation dialogs
+
+### Multi-platform layout (iPhone / iPad / Mac)
+
+The app runs on iPhone, iPad, and Mac (Designed for iPad). Keep all three in mind:
+
+- **Navigation**: `DashboardView` uses `NavigationSplitView`; `List(selection:)` + `.tag()` drives sidebar selection and push navigation on iPhone. Do not remove the `selection` binding — iPhone relies on it for implicit navigation links.
+- **Size class**: Use `@Environment(\.horizontalSizeClass)` to branch between compact (iPhone) and regular (iPad/Mac) layouts where needed.
+- **Mac detection at runtime**: Use `ProcessInfo.processInfo.isiOSAppOnMac` for runtime checks. `#if targetEnvironment(macCatalyst)` is `false` for this app (runs as "Designed for iPad", not Catalyst).
+- **Content width**: Wide screens benefit from a max-width cap on content-heavy views (Overview, Checkpoints, Auth). Use `HStack` spacers + `.frame(maxWidth:)` — do **not** use `containerRelativeFrame` inside `NavigationSplitView` detail columns, as it measures the wrong container and compresses the sidebar.
+- **Swipe actions and context menus**: Always implement both. Swipe actions are the primary interaction on iPhone/iPad; context menus (long-press on iOS, right-click on Mac) must cover the same set of actions so nothing is inaccessible on Mac. The two should be kept in sync whenever actions are added or removed.
 - Tokens are org-scoped; org slug is embedded in the token string (e.g. `my-org/1290577/...`)
 - Working directory convention: `/home/sprite/project` for new Sprites, `/home/sprite/{repo}` for cloned repos
 - Run `mkdir -p /home/sprite/project` on first chat message if no project dir exists
@@ -119,8 +129,8 @@ Phase 1 scope — build only these features:
 
 ```bash
 # Build the project
-xcodebuild -scheme Wisp -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16' build
+xcodebuild -scheme Wisp -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17' build
 
 # Run tests
-xcodebuild -scheme Wisp -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16' test
+xcodebuild -scheme Wisp -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17' test
 ```
