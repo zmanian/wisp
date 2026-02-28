@@ -54,6 +54,7 @@
 		FE589FC5A8086E6958A363E1 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F643DCF84E0352A9F8D649 /* KeychainService.swift */; };
 		AA22BB33CC44DD55EE66FF01 /* ClaudeQuestionTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA22BB33CC44DD55EE66FF02 /* ClaudeQuestionTool.swift */; };
 		FFB48F025123550446943E29 /* SpriteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C849AF5732774C39968056 /* SpriteDetailView.swift */; };
+		C3D82F1A7E4B9A0561FED234 /* SpriteNavigationPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E74C3B8D2F0C9547B6A891 /* SpriteNavigationPanel.swift */; };
 		AABB0011223344556677F002 /* ClaudeStreamParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0011223344556677F001 /* ClaudeStreamParserTests.swift */; };
 		AABB0011223344556677F004 /* JSONValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0011223344556677F003 /* JSONValueTests.swift */; };
 		AABB0011223344556677F006 /* ClaudeStreamEventTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0011223344556677F005 /* ClaudeStreamEventTests.swift */; };
@@ -97,6 +98,7 @@
 		D1A2B3C4E5F60200BB000015 /* WispActivityWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60100AA000006 /* WispActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C4D5E6F7A8B90A41637E8FA2 /* CheckpointMarkerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */; };
 		D5E6F7A8B9C00B52748FA0B2 /* AutoCheckpointTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */; };
+		E7F8A9B0C1D2E3F405A6B7C2 /* ChatNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F8A9B0C1D2E3F405A6B7C1 /* ChatNameTests.swift */; };
 		E1F2A3B4C5D6E7F800000012 /* WispCodeHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000001 /* WispCodeHighlighter.swift */; };
 		E1F2A3B4C5D6E7F800000013 /* WispMarkdownTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000002 /* WispMarkdownTheme.swift */; };
 		E1F2A3B4C5D6E7F800000014 /* UnifiedDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000003 /* UnifiedDiffView.swift */; };
@@ -155,12 +157,14 @@
 		3893EEF3ADDA05DF7A9C0909 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
 		39E3CEEE606D9AFF4265AB76 /* AssistantMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantMessageView.swift; sourceTree = "<group>"; };
 		AA00BB11CC22DD3300000002 /* WispAskCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispAskCard.swift; sourceTree = "<group>"; };
+		BB00CC11DD22EE3300000002 /* PendingUserBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingUserBubbleView.swift; sourceTree = "<group>"; };
 		3B8BD6A5D86571BFF9ECB5B2 /* ToolResultCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolResultCardView.swift; sourceTree = "<group>"; };
 		42C4A8D129C538233C34B2A6 /* ChatStatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStatusBar.swift; sourceTree = "<group>"; };
 		45BC8CB419377B55A1D1F896 /* UserBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserBubbleView.swift; sourceTree = "<group>"; };
 		4FB02E9F26B9003B6E1DBE7C /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		540685D9D567596E24E4EF82 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		54C849AF5732774C39968056 /* SpriteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteDetailView.swift; sourceTree = "<group>"; };
+		A1E74C3B8D2F0C9547B6A891 /* SpriteNavigationPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteNavigationPanel.swift; sourceTree = "<group>"; };
 		616F53154EEA09CE101C7703 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		7C308D530B9DAC21AD2A843B /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
 		7EE32C593901CBCD7DE899D3 /* ExecMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecMessage.swift; sourceTree = "<group>"; };
@@ -236,6 +240,7 @@
 		D1A2B3C4E5F60100AA000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckpointMarkerView.swift; sourceTree = "<group>"; };
 		D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoCheckpointTests.swift; sourceTree = "<group>"; };
+		E7F8A9B0C1D2E3F405A6B7C1 /* ChatNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatNameTests.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000001 /* WispCodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispCodeHighlighter.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000002 /* WispMarkdownTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispMarkdownTheme.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000003 /* UnifiedDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffView.swift; sourceTree = "<group>"; };
@@ -417,6 +422,7 @@
 			isa = PBXGroup;
 			children = (
 				54C849AF5732774C39968056 /* SpriteDetailView.swift */,
+				A1E74C3B8D2F0C9547B6A891 /* SpriteNavigationPanel.swift */,
 				D4A7E1B29C3F508A1E6B7D43 /* SpriteTabPicker.swift */,
 				B22C752D93810C377FF981DD /* Chat */,
 				13541EF56061CE5B4A38DDFA /* Checkpoints */,
@@ -491,6 +497,7 @@
 				BB00CC11DD22EE3300000002 /* PendingUserBubbleView.swift */,
 				B2C3D4E5F6A7081930DBFF01 /* SessionSuggestionsView.swift */,
 				A1A2A3A4B5B6C7C800000002 /* ThinkingShimmerView.swift */,
+				BB00CC11DD22EE3300000002 /* PendingUserBubbleView.swift */,
 				A1A2A3A4B5B6C7C800000006 /* ToolDetailSheet.swift */,
 				AB04F3FB6C647DE1F6DC0FD0 /* ToolInputDetailView.swift */,
 				3B8BD6A5D86571BFF9ECB5B2 /* ToolResultCardView.swift */,
@@ -566,6 +573,7 @@
 				AABB0011223344556677F007 /* APIModelTests.swift */,
 				AABB0011223344556677F009 /* AppErrorTests.swift */,
 				D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */,
+				E7F8A9B0C1D2E3F405A6B7C1 /* ChatNameTests.swift */,
 				FF11AA22BB33CC44DD55EE01 /* ChatViewModelHelpersTests.swift */,
 				FF11AA22BB33CC44DD55EE03 /* ChatViewModelTests.swift */,
 				BB33CC44DD55EE66FF770002 /* WispAskTests.swift */,
@@ -764,6 +772,7 @@
 				F4D30A7E8C9BADB526E70819 /* SettingsView.swift in Sources */,
 				F3F898AC4565D9C9C6C7BE10 /* Sprite.swift in Sources */,
 				FFB48F025123550446943E29 /* SpriteDetailView.swift in Sources */,
+				C3D82F1A7E4B9A0561FED234 /* SpriteNavigationPanel.swift in Sources */,
 				7B3C91E5A8D2F06473E1CA59 /* SpriteTabPicker.swift in Sources */,
 				C77F2C1E11DECAE31E0F5ECC /* SpriteOverviewView.swift in Sources */,
 				974996B0FB4D30828E89DD21 /* SpriteOverviewViewModel.swift in Sources */,
@@ -826,6 +835,7 @@
 				E5F6A7B8C9D00B42637E8F91 /* SpriteChatListViewModelTests.swift in Sources */,
 				F6A7B8C9D0E10C53748F9002 /* SpriteChatMigrationTests.swift in Sources */,
 				D5E6F7A8B9C00B52748FA0B2 /* AutoCheckpointTests.swift in Sources */,
+				E7F8A9B0C1D2E3F405A6B7C2 /* ChatNameTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

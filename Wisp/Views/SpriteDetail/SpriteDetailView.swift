@@ -3,7 +3,7 @@ import SwiftData
 
 struct SpriteDetailView: View {
     let sprite: Sprite
-    @State private var selectedTab: SpriteTab = .chat
+    @Binding var selectedTab: SpriteTab
     @State private var chatListViewModel: SpriteChatListViewModel
     @State private var chatViewModel: ChatViewModel?
     @State private var checkpointsViewModel: CheckpointsViewModel
@@ -16,11 +16,64 @@ struct SpriteDetailView: View {
     @Environment(SpritesAPIClient.self) private var apiClient
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
-    init(sprite: Sprite) {
+    init(sprite: Sprite, selectedTab: Binding<SpriteTab>) {
         self.sprite = sprite
+        _selectedTab = selectedTab
         _chatListViewModel = State(initialValue: SpriteChatListViewModel(spriteName: sprite.name))
         _checkpointsViewModel = State(initialValue: CheckpointsViewModel(spriteName: sprite.name))
+    }
+
+    private var showTabPicker: Bool { sizeClass != .regular }
+
+    private var navSelectionBinding: Binding<SpriteNavSelection?> {
+        Binding(
+            get: {
+                switch selectedTab {
+                case .overview: return .overview
+                case .checkpoints: return .checkpoints
+                case .chat: return chatListViewModel.activeChatId.map { .chat($0) }
+                }
+            },
+            set: { newValue in
+                guard let newValue else { return }
+                switch newValue {
+                case .overview:
+                    selectedTab = .overview
+                case .checkpoints:
+                    selectedTab = .checkpoints
+                case .chat(let id):
+                    selectedTab = .chat
+                    if let chat = chatListViewModel.chats.first(where: { $0.id == id }) {
+                        switchToChat(chat)
+                    }
+                }
+            }
+        )
+    }
+
+    private var regularLayout: some View {
+        HStack(spacing: 0) {
+            SpriteNavigationPanel(
+                sprite: sprite,
+                selection: navSelectionBinding,
+                chatListViewModel: chatListViewModel,
+                onCreateChat: {
+                    let chat = chatListViewModel.createChat(modelContext: modelContext)
+                    selectedTab = .chat
+                    switchToChat(chat)
+                }
+            )
+            .frame(width: 260)
+
+            Divider()
+
+            if selectedTab != .chat { Spacer(minLength: 0) }
+            tabContent
+                .frame(maxWidth: selectedTab == .chat ? .infinity : 680, maxHeight: .infinity)
+            if selectedTab != .chat { Spacer(minLength: 0) }
+        }
     }
 
     private var pickerView: some View {
@@ -32,32 +85,38 @@ struct SpriteDetailView: View {
         switch selectedTab {
         case .overview:
             SpriteOverviewView(sprite: sprite)
-                .safeAreaInset(edge: .top, spacing: 0) { pickerView }
+                .safeAreaInset(edge: .top, spacing: 0) { if showTabPicker { pickerView } }
         case .chat:
             if let chatViewModel {
                 let isReadOnly = chatListViewModel.activeChat?.isClosed == true
                 ChatView(
                     viewModel: chatViewModel,
                     isReadOnly: isReadOnly,
-                    topAccessory: AnyView(pickerView),
+                    topAccessory: showTabPicker ? AnyView(pickerView) : nil,
                     existingSessionIds: Set(chatListViewModel.chats.filter { !$0.isClosed }.compactMap(\.claudeSessionId)),
                     onFork: { checkpointId, messageId in
                         pendingFork = (checkpointId, messageId)
                     }
                 )
-                    .id(chatViewModel.chatId)
+                .id(chatViewModel.chatId)
             } else {
                 ProgressView()
-                    .safeAreaInset(edge: .top, spacing: 0) { pickerView }
+                    .safeAreaInset(edge: .top, spacing: 0) { if showTabPicker { pickerView } }
             }
         case .checkpoints:
             CheckpointsView(viewModel: checkpointsViewModel)
-                .safeAreaInset(edge: .top, spacing: 0) { pickerView }
+                .safeAreaInset(edge: .top, spacing: 0) { if showTabPicker { pickerView } }
         }
     }
 
     var body: some View {
-        tabContent
+        Group {
+            if sizeClass == .regular {
+                regularLayout
+            } else {
+                tabContent
+            }
+        }
         .overlay {
             if isForking {
                 ZStack {
@@ -96,10 +155,12 @@ struct SpriteDetailView: View {
             if selectedTab == .chat {
                 ToolbarItem(placement: .primaryAction) {
                     HStack(spacing: 12) {
-                        Button {
-                            showChatSwitcher = true
-                        } label: {
-                            Image(systemName: "bubble.left.and.bubble.right")
+                        if sizeClass != .regular {
+                            Button {
+                                showChatSwitcher = true
+                            } label: {
+                                Image(systemName: "bubble.left.and.bubble.right")
+                            }
                         }
 
                         Button {

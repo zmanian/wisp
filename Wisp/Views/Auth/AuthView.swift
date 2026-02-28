@@ -5,32 +5,38 @@ struct AuthView: View {
     @State private var viewModel = AuthViewModel()
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    StepIndicator(currentStep: viewModel.step)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-                }
-
-                switch viewModel.step {
-                case .spritesToken:
-                    spritesTokenSection
-                case .claudeToken:
-                    claudeTokenSection
-                case .githubToken:
-                    githubTokenSection
-                }
-
-                if let errorMessage = viewModel.errorMessage {
+        ZStack {
+            Color(.systemGroupedBackground).ignoresSafeArea()
+            NavigationStack {
+                Form {
                     Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red)
+                        StepIndicator(currentStep: viewModel.step)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    }
+
+                    switch viewModel.step {
+                    case .spritesToken:
+                        spritesTokenSection
+                    case .claudeToken:
+                        claudeTokenSection
+                    case .githubToken:
+                        githubTokenSection
+                    }
+
+                    if let errorMessage = viewModel.errorMessage {
+                        Section {
+                            Label(errorMessage, systemImage: "exclamationmark.triangle")
+                                .foregroundStyle(.red)
+                        }
                     }
                 }
+                .navigationTitle("Sign In")
+                .disabled(viewModel.isValidating)
             }
-            .navigationTitle("Sign In")
-            .disabled(viewModel.isValidating)
+            .containerRelativeFrame(.horizontal, alignment: .center) { width, _ in
+                min(width, 540)
+            }
         }
     }
 

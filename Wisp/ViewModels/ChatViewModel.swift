@@ -30,6 +30,7 @@ final class ChatViewModel {
     var status: ChatStatus = .idle
     var modelName: String?
     var remoteSessions: [ClaudeSessionEntry] = []
+    var hasAnyRemoteSessions = false
     var isLoadingRemoteSessions = false
     var isLoadingHistory = false
 
@@ -37,6 +38,7 @@ final class ChatViewModel {
     private var sessionId: String?
     private var workingDirectory: String
     private var streamTask: Task<Void, Never>?
+    var namingTask: Task<Void, Never>?
     private let parser = ClaudeStreamParser()
     private var currentAssistantMessage: ChatMessage?
     private var toolUseIndex: [String: (messageIndex: Int, toolName: String)] = [:]
@@ -182,6 +184,7 @@ final class ChatViewModel {
                 .sorted { a, b in
                     (a.modifiedDate ?? .distantPast) > (b.modifiedDate ?? .distantPast)
                 }
+            hasAnyRemoteSessions = !entries.isEmpty
             remoteSessions = Array(filtered.prefix(5))
             logger.info("Found \(entries.count) remote sessions, \(self.remoteSessions.count) available to resume")
         }
@@ -355,6 +358,10 @@ final class ChatViewModel {
         }
     }
 
+    func cancelQueuedPrompt() {
+        queuedPrompt = nil
+    }
+
     func sendMessage(apiClient: SpritesAPIClient, modelContext: ModelContext) {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -369,17 +376,18 @@ final class ChatViewModel {
             return
         }
 
+        let isFirstMessage = messages.isEmpty
         let userMessage = ChatMessage(role: .user, content: [.text(text)])
         messages.append(userMessage)
         persistMessages(modelContext: modelContext)
 
+        if isFirstMessage {
+            namingTask = Task { await autoNameChat(firstMessage: text, modelContext: modelContext) }
+        }
+
         streamTask = Task {
             await executeClaudeCommand(prompt: text, apiClient: apiClient, modelContext: modelContext)
         }
-    }
-
-    func cancelQueuedPrompt() {
-        queuedPrompt = nil
     }
 
     func resumeAfterBackground(apiClient: SpritesAPIClient, modelContext: ModelContext) {
@@ -401,6 +409,7 @@ final class ChatViewModel {
         streamTask = nil
 
         currentAssistantMessage = nil
+        queuedPrompt = nil
         status = .idle
 
         if let modelContext {
@@ -1130,6 +1139,45 @@ final class ChatViewModel {
                 .replacingOccurrences(of: "\\", with: "")
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`."))
             return generated.isEmpty ? fallback : String(generated.prefix(120))
+        } catch {
+            return fallback
+        }
+    }
+
+    private func autoNameChat(firstMessage: String, modelContext: ModelContext) async {
+        guard let chat = fetchChat(modelContext: modelContext), chat.customName == nil else { return }
+        let name = await Self.generateChatName(from: firstMessage)
+        chat.customName = name
+        try? modelContext.save()
+    }
+
+    static func generateChatName(from prompt: String) async -> String {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "New Chat" }
+
+        let firstLine = trimmed.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? trimmed
+        let fallback = String(firstLine.prefix(50))
+
+        guard SystemLanguageModel.default.isAvailable else { return fallback }
+
+        do {
+            let session = LanguageModelSession(
+                instructions: """
+                You write ultra-short chat titles (2-5 words). Imperative or noun phrase. \
+                No filler words. Capture what the user wants to accomplish. \
+                No punctuation at the end. \
+                Examples: "Debug login redirect", "Add dark mode", "Write unit tests", \
+                "Explain Swift closures", "Set up CI pipeline".
+                """
+            )
+            let response = try await session.respond(
+                to: "Write a short title for a chat that starts with this message:\n\n\(String(trimmed.prefix(500)))"
+            )
+            let generated = response.content
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\\", with: "")
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`."))
+            return generated.isEmpty ? fallback : String(generated.prefix(80))
         } catch {
             return fallback
         }

@@ -7,9 +7,12 @@ enum SpriteSortOrder: String, CaseIterable {
 
 struct DashboardView: View {
     @Environment(SpritesAPIClient.self) private var apiClient
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var viewModel = DashboardViewModel()
-    @State private var navigationPath = NavigationPath()
+    @State private var selectedSpriteID: String?
+    @State private var selectedTab: SpriteTab = .chat
     @State private var sortOrder: SpriteSortOrder = .newest
+    @State private var showSettings = false
 
     private var sortedSprites: [Sprite] {
         switch sortOrder {
@@ -21,7 +24,7 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
+        NavigationSplitView {
             Group {
                 if viewModel.sprites.isEmpty && !viewModel.isLoading {
                     ContentUnavailableView(
@@ -30,14 +33,14 @@ struct DashboardView: View {
                         description: Text("Create a Sprite to get started")
                     )
                 } else {
-                    List {
+                    List(selection: $selectedSpriteID) {
                         ForEach(sortedSprites) { sprite in
-                            Button {
-                                navigationPath.append(sprite)
-                            } label: {
-                                SpriteRowView(sprite: sprite)
-                            }
-                            .buttonStyle(.plain)
+                            SpriteRowView(
+                                sprite: sprite,
+                                isPlain: sizeClass == .regular,
+                                isSelected: sizeClass != .regular && selectedSpriteID == sprite.id
+                            )
+                            .tag(sprite.id)
                             .swipeActions(edge: .trailing) {
                                 Button("Delete") {
                                     viewModel.spriteToDelete = sprite
@@ -59,9 +62,10 @@ struct DashboardView: View {
                                     Task { await viewModel.deleteSprite(sprite, apiClient: apiClient) }
                                 }
                             }
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .listRowSeparator(sizeClass == .regular ? .automatic : .hidden)
+                            .listRowBackground(sizeClass == .regular ? nil : Color.clear)
+                            .listRowInsets(sizeClass == .regular ? nil : EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .id(sprite.id)
                         }
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -73,21 +77,12 @@ struct DashboardView: View {
                     }
                 }
             }
-            .background(
-                LinearGradient(
-                    colors: [Color(.systemBackground), Color.accentColor.opacity(0.06)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-            )
             .navigationTitle("Sprites")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     HStack(spacing: 12) {
-                        NavigationLink {
-                            SettingsView()
+                        Button {
+                            showSettings = true
                         } label: {
                             Image(systemName: "gearshape")
                         }
@@ -110,27 +105,61 @@ struct DashboardView: View {
                     }
                 }
             }
-            .navigationDestination(for: Sprite.self) { sprite in
-                SpriteDetailView(sprite: sprite)
+        } detail: {
+            if let id = selectedSpriteID, let selectedSprite = sortedSprites.first(where: { $0.id == id }) {
+                SpriteDetailView(sprite: selectedSprite, selectedTab: $selectedTab)
+                    .id(id)
+            } else {
+                ContentUnavailableView(
+                    "Select a Sprite",
+                    systemImage: "sparkles",
+                    description: Text("Choose a Sprite from the list to get started")
+                )
             }
-            .task {
-                await viewModel.loadSprites(apiClient: apiClient)
+        }
+        .onChange(of: sortedSprites) { _, newSprites in
+            if let id = selectedSpriteID, !newSprites.contains(where: { $0.id == id }) {
+                selectedSpriteID = nil
             }
-            .sheet(isPresented: $viewModel.showCreateSheet) {
-                CreateSpriteSheet()
-                    .onDisappear {
-                        Task { await viewModel.loadSprites(apiClient: apiClient) }
+        }
+        .onChange(of: selectedSpriteID) { _, _ in
+            if sizeClass != .regular {
+                selectedTab = .chat
+            }
+        }
+        .task {
+            await viewModel.loadSprites(apiClient: apiClient)
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                await viewModel.refreshSprites(apiClient: apiClient)
+            }
+        }
+        .sheet(isPresented: $viewModel.showCreateSheet) {
+            CreateSpriteSheet()
+                .onDisappear {
+                    Task { await viewModel.loadSprites(apiClient: apiClient) }
+                }
+        }
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                SettingsView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { showSettings = false }
+                        }
                     }
             }
-            .alert("Error", isPresented: .init(
-                get: { viewModel.errorMessage != nil },
-                set: { if !$0 { viewModel.errorMessage = nil } }
-            )) {
-                Button("OK") {}
-            } message: {
-                if let error = viewModel.errorMessage {
-                    Text(error)
-                }
+        }
+        .alert("Error", isPresented: .init(
+            get: { viewModel.errorMessage != nil },
+            set: { if !$0 { viewModel.errorMessage = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            if let error = viewModel.errorMessage {
+                Text(error)
             }
         }
     }

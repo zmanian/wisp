@@ -19,6 +19,7 @@ struct ChatView: View {
                     if viewModel.messages.isEmpty && !isReadOnly {
                         SessionSuggestionsView(
                             sessions: viewModel.remoteSessions,
+                            hasAnySessions: viewModel.hasAnyRemoteSessions,
                             isLoading: viewModel.isLoadingRemoteSessions || viewModel.isLoadingHistory
                         ) { entry in
                             contentOpacity = 0
@@ -35,6 +36,10 @@ struct ChatView: View {
                     }
                     if let pendingText = viewModel.queuedPrompt {
                         PendingUserBubbleView(text: pendingText) {
+                            viewModel.inputText = pendingText
+                            viewModel.queuedPrompt = nil
+                            isInputFocused = true
+                        } onCancel: {
                             viewModel.cancelQueuedPrompt()
                         }
                     }
@@ -49,11 +54,6 @@ struct ChatView: View {
                 proxy.scrollTo("bottom")
             }
             .onChange(of: viewModel.messages.last?.content.count) {
-                if viewModel.isStreaming {
-                    proxy.scrollTo("bottom")
-                }
-            }
-            .onChange(of: viewModel.activeToolLabel) {
                 if viewModel.isStreaming {
                     proxy.scrollTo("bottom")
                 }
@@ -119,6 +119,7 @@ struct ChatView: View {
                 ChatInputBar(
                     text: $viewModel.inputText,
                     isStreaming: viewModel.isStreaming,
+                    hasQueuedMessage: viewModel.queuedPrompt != nil,
                     onSend: {
                         isInputFocused = false
                         viewModel.sendMessage(apiClient: apiClient, modelContext: modelContext)

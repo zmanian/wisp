@@ -27,7 +27,7 @@ struct AssistantMessageView: View {
                             .textSelection(.enabled)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
-                            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16))
+                            .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 16))
                             .contextMenu {
                                 Button {
                                     UIPasteboard.general.string = text
