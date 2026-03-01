@@ -378,7 +378,7 @@ final class ChatViewModel {
             namingTask = Task { await autoNameChat(firstMessage: text, modelContext: modelContext) }
         }
 
-        let worktreeEnabled = UserDefaults.standard.object(forKey: "worktreePerChat") as? Bool ?? true
+        let worktreeEnabled = UserDefaults.standard.bool(forKey: "worktreePerChat")
         let needsWorktreeSetup = isFirstMessage && worktreePath == nil && worktreeEnabled
         status = .connecting
         streamTask = Task {
