@@ -38,7 +38,7 @@ final class ChatViewModel {
     private var workingDirectory: String
     private var worktreePath: String?
     private var streamTask: Task<Void, Never>?
-    var namingTask: Task<Void, Never>?
+    var namingTask: Task<String, Never>?
     private let parser = ClaudeStreamParser()
     private var currentAssistantMessage: ChatMessage?
     private var toolUseIndex: [String: (messageIndex: Int, toolName: String)] = [:]
@@ -383,9 +383,8 @@ final class ChatViewModel {
         status = .connecting
         streamTask = Task {
             if needsWorktreeSetup {
-                // Wait for chat naming so we can derive the branch name from the title
-                await self.namingTask?.value
-                let chatName = self.fetchChat(modelContext: modelContext)?.customName ?? text
+                // Wait for chat naming and use the result directly as the branch base
+                let chatName = await self.namingTask?.value ?? text
                 let branch = Self.branchName(from: chatName)
                 await self.setupWorktree(branchName: branch, apiClient: apiClient, modelContext: modelContext)
             }
@@ -1126,11 +1125,14 @@ final class ChatViewModel {
         }
     }
 
-    private func autoNameChat(firstMessage: String, modelContext: ModelContext) async {
-        guard let chat = fetchChat(modelContext: modelContext), chat.customName == nil else { return }
+    @discardableResult
+    private func autoNameChat(firstMessage: String, modelContext: ModelContext) async -> String {
+        guard let chat = fetchChat(modelContext: modelContext) else { return firstMessage }
+        if let existing = chat.customName { return existing }
         let name = await Self.generateChatName(from: firstMessage)
         chat.customName = name
         try? modelContext.save()
+        return name
     }
 
     static func generateChatName(from prompt: String) async -> String {
