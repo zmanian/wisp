@@ -145,7 +145,7 @@ final class SpriteChatListViewModel {
     private static func removeWorktree(path: String, spriteName: String, apiClient: SpritesAPIClient) async {
         _ = await apiClient.runExec(
             spriteName: spriteName,
-            command: "git worktree remove --force '\(path)' 2>/dev/null || true",
+            command: "git -C '\(path)' worktree remove --force '\(path)' 2>/dev/null || true",
             timeout: 15
         )
     }
