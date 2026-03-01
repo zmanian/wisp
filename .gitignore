@@ -25,6 +25,9 @@ Package.resolved
 # Dev scripts
 .dev/
 
+# Superset
+.superset/
+
 # OS
 .DS_Store
 *.swp
