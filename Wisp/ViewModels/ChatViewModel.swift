@@ -786,8 +786,12 @@ final class ChatViewModel {
             timeoutTask.cancel()
 
             let uuidCount = processedEventUUIDs.count
-            logger.info("Stream ended: events=\(eventCount) receivedData=\(receivedData) skipped=\(skippedCount) uuids=\(uuidCount)")
-            return Task.isCancelled ? .cancelled : (receivedData ? .completed : .timedOut)
+            logger.info("Stream ended: events=\(eventCount) receivedData=\(receivedData) skipped=\(skippedCount) uuids=\(uuidCount) gotResult=\(self.receivedResultEvent)")
+            if Task.isCancelled { return .cancelled }
+            if !receivedData { return .timedOut }
+            // A clean stream close without the result event means Claude is still running —
+            // treat it as a disconnect so the caller reconnects rather than going idle.
+            return receivedResultEvent ? .completed : .disconnected
         } catch {
             timeoutTask.cancel()
             logger.error("Stream error after \(eventCount) events: \(Self.sanitize(error.localizedDescription), privacy: .public)")
