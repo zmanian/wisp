@@ -20,6 +20,19 @@ struct PendingUserBubbleView: View {
                     .padding(.vertical, 10)
                     .background(.blue.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
                     .foregroundStyle(.white)
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = text
+                        } label: {
+                            Label("Copy", systemImage: "doc.on.doc")
+                        }
+                        Button(action: onEdit) {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        Button(role: .destructive, action: onCancel) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                 HStack(spacing: 10) {
                     Button(action: onEdit) {
                         Label("Edit", systemImage: "pencil")
