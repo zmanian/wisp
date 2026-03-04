@@ -22,6 +22,36 @@ struct ConsoleLogEntry: Identifiable {
     }
 }
 
+struct NetworkRequestEntry: Identifiable {
+    let id = UUID()
+    let method: String
+    let urlString: String
+    let status: Int?       // nil means network error before response
+    let durationMs: Double
+    let error: String?
+    let timestamp: Date = .now
+
+    var statusColor: Color {
+        guard let status else { return .red }
+        switch status {
+        case 200..<300: return .green
+        case 300..<400: return .blue
+        case 400..<500: return .orange
+        default: return .red
+        }
+    }
+
+    var displayPath: String {
+        guard let url = URL(string: urlString) else { return urlString }
+        let path = url.path()
+        return path.isEmpty ? "/" : path
+    }
+
+    var formattedDuration: String {
+        durationMs < 1000 ? "\(Int(durationMs))ms" : String(format: "%.1fs", durationMs / 1000)
+    }
+}
+
 @Observable
 @MainActor
 final class WebViewState {
@@ -30,6 +60,7 @@ final class WebViewState {
     var isLoading = false
     var currentURL: URL?
     var consoleLogs: [ConsoleLogEntry] = []
+    var networkRequests: [NetworkRequestEntry] = []
     fileprivate(set) weak var webView: WKWebView?
 
     func goBack() { webView?.goBack() }
@@ -53,9 +84,16 @@ struct WebViewPage: UIViewRepresentable {
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false
         ))
+        ucc.addUserScript(WKUserScript(
+            source: Self.networkScript,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false
+        ))
         // WeakScriptMessageHandler avoids a retain cycle:
         // WKUserContentController strongly retains its handlers.
-        ucc.add(WeakScriptMessageHandler(context.coordinator), name: "consoleLog")
+        let messageHandler = WeakScriptMessageHandler(context.coordinator)
+        ucc.add(messageHandler, name: "consoleLog")
+        ucc.add(messageHandler, name: "networkRequest")
         config.userContentController = ucc
 
         let webView = WKWebView(frame: .zero, configuration: config)
@@ -87,6 +125,58 @@ struct WebViewPage: UIViewRepresentable {
         })();
         """
 
+    private static let networkScript = """
+        (function() {
+            const h = window.webkit?.messageHandlers?.networkRequest;
+            if (!h) return;
+
+            // Intercept fetch
+            const origFetch = window.fetch;
+            if (origFetch) {
+                window.fetch = function(input, init) {
+                    const url = input instanceof Request ? input.url : String(input);
+                    const method = (init?.method || (input instanceof Request ? input.method : null) || 'GET').toUpperCase();
+                    const start = Date.now();
+                    return Promise.resolve(origFetch.call(window, input, init)).then(
+                        function(r) {
+                            try { h.postMessage({method: method, url: url, status: r.status, duration: Date.now() - start}); } catch(e) {}
+                            return r;
+                        },
+                        function(err) {
+                            try { h.postMessage({method: method, url: url, status: null, duration: Date.now() - start, error: String(err)}); } catch(e) {}
+                            throw err;
+                        }
+                    );
+                };
+            }
+
+            // Intercept XMLHttpRequest via prototype patching
+            const origOpen = XMLHttpRequest.prototype.open;
+            const origSend = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.open = function(method, url) {
+                this._nm = String(method).toUpperCase();
+                this._nu = String(url);
+                return origOpen.apply(this, arguments);
+            };
+            XMLHttpRequest.prototype.send = function(body) {
+                const start = Date.now();
+                const self = this;
+                this.addEventListener('loadend', function() {
+                    try {
+                        h.postMessage({
+                            method: self._nm || 'GET',
+                            url: self._nu || '',
+                            status: self.status || null,
+                            duration: Date.now() - start,
+                            error: self.status === 0 ? 'Network error' : null
+                        });
+                    } catch(e) {}
+                });
+                return origSend.apply(this, arguments);
+            };
+        })();
+        """
+
     private final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler, @unchecked Sendable {
         weak var coordinator: Coordinator?
 
@@ -98,13 +188,36 @@ struct WebViewPage: UIViewRepresentable {
             _ userContentController: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
-            guard let body = message.body as? [String: String],
-                  let levelRaw = body["level"],
-                  let text = body["message"]
-            else { return }
-            Task { @MainActor [weak self] in
-                guard let level = ConsoleLogEntry.Level(rawValue: levelRaw) else { return }
-                self?.coordinator?.state.consoleLogs.append(ConsoleLogEntry(level: level, message: text))
+            switch message.name {
+            case "consoleLog":
+                guard let body = message.body as? [String: String],
+                      let levelRaw = body["level"],
+                      let text = body["message"]
+                else { return }
+                Task { @MainActor [weak self] in
+                    guard let level = ConsoleLogEntry.Level(rawValue: levelRaw) else { return }
+                    self?.coordinator?.state.consoleLogs.append(ConsoleLogEntry(level: level, message: text))
+                }
+            case "networkRequest":
+                guard let body = message.body as? [String: Any],
+                      let method = body["method"] as? String,
+                      let urlString = body["url"] as? String
+                else { return }
+                let status = body["status"] as? Int
+                let durationMs = body["duration"] as? Double ?? 0
+                let error = body["error"] as? String
+                Task { @MainActor [weak self] in
+                    let entry = NetworkRequestEntry(
+                        method: method,
+                        urlString: urlString,
+                        status: status,
+                        durationMs: durationMs,
+                        error: error
+                    )
+                    self?.coordinator?.state.networkRequests.append(entry)
+                }
+            default:
+                break
             }
         }
     }
