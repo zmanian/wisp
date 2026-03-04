@@ -19,6 +19,21 @@ enum ChatStatus: Sendable {
     }
 }
 
+struct AttachedFile: Identifiable {
+    let id = UUID()
+    let name: String   // "main.py" or "photo_20260228.jpg"
+    let path: String   // "/home/sprite/project/main.py"
+
+    static let imageExtensions: Set<String> = [
+        "jpg", "jpeg", "png", "gif", "heic", "webp", "tiff", "bmp", "svg",
+    ]
+
+    var isImage: Bool {
+        let ext = (name as NSString).pathExtension.lowercased()
+        return Self.imageExtensions.contains(ext)
+    }
+}
+
 @Observable
 @MainActor
 final class ChatViewModel {
@@ -46,6 +61,7 @@ final class ChatViewModel {
     private var receivedResultEvent = false
     private var usedResume = false
     var queuedPrompt: String?
+    var queuedAttachments: [AttachedFile] = []
     private var retriedAfterTimeout = false
     private var turnHasMutations = false
     private var pendingForkContext: String?
@@ -61,6 +77,74 @@ final class ChatViewModel {
         self.chatId = chatId
         self.serviceName = currentServiceName ?? "wisp-claude-\(UUID().uuidString.prefix(8).lowercased())"
         self.workingDirectory = workingDirectory
+    }
+
+    // MARK: - Attachment State
+
+    var attachedFiles: [AttachedFile] = []
+    var isUploadingAttachment = false
+    var uploadAttachmentError: String?
+    var lastUploadedFileName: String?
+    private var uploadFeedbackTask: Task<Void, Never>?
+
+    private static let maxUploadBytes: Int = 10 * 1024 * 1024 // 10 MB
+
+    func uploadFileFromDevice(apiClient: SpritesAPIClient, fileURL: URL) async -> String? {
+        let accessing = fileURL.startAccessingSecurityScopedResource()
+        defer { if accessing { fileURL.stopAccessingSecurityScopedResource() } }
+
+        if let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+           size > Self.maxUploadBytes {
+            uploadAttachmentError = "File is too large to upload (max 10 MB)"
+            return nil
+        }
+
+        let data: Data
+        do {
+            data = try Data(contentsOf: fileURL)
+        } catch {
+            uploadAttachmentError = "Failed to read file: \(error.localizedDescription)"
+            return nil
+        }
+
+        return await uploadAttachmentData(apiClient: apiClient, data: data, filename: fileURL.lastPathComponent)
+    }
+
+    func uploadPhotoData(apiClient: SpritesAPIClient, data: Data, fileExtension: String) async -> String? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        let filename = "photo_\(formatter.string(from: Date())).\(fileExtension)"
+        return await uploadAttachmentData(apiClient: apiClient, data: data, filename: filename)
+    }
+
+    private func uploadAttachmentData(apiClient: SpritesAPIClient, data: Data, filename: String) async -> String? {
+        let remotePath = workingDirectory.hasSuffix("/")
+            ? workingDirectory + filename
+            : workingDirectory + "/" + filename
+
+        isUploadingAttachment = true
+        uploadAttachmentError = nil
+        defer { isUploadingAttachment = false }
+
+        do {
+            try await apiClient.uploadFile(
+                spriteName: spriteName,
+                remotePath: remotePath,
+                data: data
+            )
+            lastUploadedFileName = filename
+            uploadFeedbackTask?.cancel()
+            uploadFeedbackTask = Task {
+                try? await Task.sleep(for: .seconds(2))
+                if !Task.isCancelled {
+                    lastUploadedFileName = nil
+                }
+            }
+            return remotePath
+        } catch {
+            uploadAttachmentError = "Upload failed: \(error.localizedDescription)"
+            return nil
+        }
     }
 
     var isStreaming: Bool {
@@ -353,29 +437,62 @@ final class ChatViewModel {
 
     func cancelQueuedPrompt() {
         queuedPrompt = nil
+        queuedAttachments = []
+    }
+
+    private func buildPrompt(text: String, attachments: [AttachedFile]) -> String {
+        guard !attachments.isEmpty else { return text }
+        let images = attachments.filter { $0.isImage }
+        let files = attachments.filter { !$0.isImage }
+
+        var parts: [String] = []
+
+        if !files.isEmpty {
+            parts.append(files.map(\.path).joined(separator: "\n"))
+        }
+
+        if !images.isEmpty {
+            let hint = images.map { "Use the Read tool to view this image: \($0.path)" }
+                .joined(separator: "\n")
+            parts.append(hint)
+        }
+
+        if !text.isEmpty {
+            parts.append(text)
+        }
+
+        return parts.joined(separator: "\n\n")
     }
 
     func sendMessage(apiClient: SpritesAPIClient, modelContext: ModelContext) {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty || !attachedFiles.isEmpty else { return }
 
         inputText = ""
+
         saveDraft(modelContext: modelContext)
         retriedAfterTimeout = false
 
         if isStreaming {
-            // Queue for later — don't add to messages yet; PendingUserBubbleView shows it
+            // Queue for later — store text and attachments separately so the
+            // pending bubble can show nice attachment chips instead of raw paths
             queuedPrompt = text
+            queuedAttachments = attachedFiles
+            attachedFiles = []
             return
         }
 
+        // Build prompt with attached file paths prepended
+        let prompt = buildPrompt(text: text, attachments: attachedFiles)
+        attachedFiles = []
+
         let isFirstMessage = messages.isEmpty
-        let userMessage = ChatMessage(role: .user, content: [.text(text)])
+        let userMessage = ChatMessage(role: .user, content: [.text(prompt)])
         messages.append(userMessage)
         persistMessages(modelContext: modelContext)
 
         if isFirstMessage {
-            namingTask = Task { await autoNameChat(firstMessage: text, modelContext: modelContext) }
+            namingTask = Task { await autoNameChat(firstMessage: prompt, modelContext: modelContext) }
         }
 
         let worktreeEnabled = UserDefaults.standard.bool(forKey: "worktreePerChat")
@@ -388,7 +505,7 @@ final class ChatViewModel {
                 let branch = Self.branchName(from: chatName)
                 await self.setupWorktree(branchName: branch, apiClient: apiClient, modelContext: modelContext)
             }
-            await executeClaudeCommand(prompt: text, apiClient: apiClient, modelContext: modelContext)
+            await executeClaudeCommand(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
         }
     }
 
@@ -412,6 +529,7 @@ final class ChatViewModel {
 
         currentAssistantMessage = nil
         queuedPrompt = nil
+        queuedAttachments = []
         status = .idle
 
         if let modelContext {
@@ -624,11 +742,13 @@ final class ChatViewModel {
         persistMessages(modelContext: modelContext)
 
         if let queued = queuedPrompt {
+            let prompt = buildPrompt(text: queued, attachments: queuedAttachments)
             queuedPrompt = nil
-            let userMessage = ChatMessage(role: .user, content: [.text(queued)])
+            queuedAttachments = []
+            let userMessage = ChatMessage(role: .user, content: [.text(prompt)])
             messages.append(userMessage)
             persistMessages(modelContext: modelContext)
-            await executeClaudeCommand(prompt: queued, apiClient: apiClient, modelContext: modelContext)
+            await executeClaudeCommand(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
         }
     }
 
@@ -893,11 +1013,13 @@ final class ChatViewModel {
         persistMessages(modelContext: modelContext)
 
         if let queued = queuedPrompt, !Task.isCancelled {
+            let prompt = buildPrompt(text: queued, attachments: queuedAttachments)
             queuedPrompt = nil
-            let userMessage = ChatMessage(role: .user, content: [.text(queued)])
+            queuedAttachments = []
+            let userMessage = ChatMessage(role: .user, content: [.text(prompt)])
             messages.append(userMessage)
             persistMessages(modelContext: modelContext)
-            await executeClaudeCommand(prompt: queued, apiClient: apiClient, modelContext: modelContext)
+            await executeClaudeCommand(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
         }
     }
 
