@@ -66,7 +66,7 @@ struct ToolDetailSheet: View {
 
             if let resultCard = card.result {
                 ScrollView([.horizontal, .vertical], showsIndicators: true) {
-                    Text(resultCard.displayContent)
+                    Text(resultCard.displayContent.relativeToCwd(workingDirectory))
                         .font(.system(.caption2, design: .monospaced))
                         .textSelection(.enabled)
                         .fixedSize(horizontal: true, vertical: true)
@@ -85,4 +85,23 @@ struct ToolDetailSheet: View {
             }
         }
     }
+}
+
+#Preview("Grep result with relative paths") {
+    let cwd = "/home/sprite/project"
+    let card = ToolUseCard(
+        toolUseId: "grep-1",
+        toolName: "Grep",
+        input: .object(["pattern": .string("relativeToCwd"), "path": .string("/home/sprite/project")])
+    )
+    card.result = ToolResultCard(
+        toolUseId: "grep-1",
+        toolName: "Grep",
+        content: .string("""
+            /home/sprite/project/Wisp/Utilities/Extensions.swift:42:func relativeToCwd(_ cwd: String) -> String {
+            /home/sprite/project/Wisp/Views/SpriteDetail/Chat/ToolStepRow.swift:51:card.activityLabel.relativeToCwd(workingDirectory)
+            /home/sprite/project/WispTests/ExtensionsTests.swift:58:path.relativeToCwd(cwd)
+            """)
+    )
+    return ToolDetailSheet(card: card, workingDirectory: cwd)
 }
