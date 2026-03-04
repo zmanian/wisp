@@ -220,13 +220,46 @@ private struct NetworkRequestRow: View {
         }
     }
 
+    private func prettyPrinted(_ text: String) -> String {
+        guard let data = text.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data),
+              let pretty = try? JSONSerialization.data(withJSONObject: obj, options: .prettyPrinted),
+              let str = String(data: pretty, encoding: .utf8)
+        else { return text }
+        return str
+    }
+
     var body: some View {
         DisclosureGroup {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(entry.urlString)
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
+                if let reqBody = entry.requestBody {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("REQUEST BODY")
+                            .font(.system(.caption2, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text(prettyPrinted(reqBody))
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                if let respBody = entry.responseBody {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("RESPONSE BODY")
+                            .font(.system(.caption2, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text(prettyPrinted(respBody))
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 if let error = entry.error {
                     Text(error)
                         .font(.system(.caption2, design: .monospaced))
@@ -304,9 +337,9 @@ private struct NetworkRequestRow: View {
     DevToolsDrawer(
         logs: [],
         requests: [
-            NetworkRequestEntry(method: "GET", urlString: "https://api.example.com/users", status: 200, durationMs: 45, error: nil),
-            NetworkRequestEntry(method: "POST", urlString: "https://api.example.com/auth/login", status: 401, durationMs: 120, error: nil),
-            NetworkRequestEntry(method: "GET", urlString: "https://api.example.com/data/very/long/path/that/gets/truncated", status: 500, durationMs: 230, error: nil),
+            NetworkRequestEntry(method: "GET", urlString: "https://api.example.com/users", status: 200, durationMs: 45, error: nil, responseBody: "[{\"id\":1,\"name\":\"Alice\"},{\"id\":2,\"name\":\"Bob\"}]"),
+            NetworkRequestEntry(method: "POST", urlString: "https://api.example.com/auth/login", status: 401, durationMs: 120, error: nil, requestBody: "{\"email\":\"user@example.com\",\"password\":\"secret\"}", responseBody: "{\"error\":\"Invalid credentials\"}"),
+            NetworkRequestEntry(method: "GET", urlString: "https://api.example.com/data/very/long/path/that/gets/truncated", status: 500, durationMs: 230, error: nil, responseBody: "{\"error\":\"Internal Server Error\"}"),
             NetworkRequestEntry(method: "DELETE", urlString: "https://api.example.com/session", status: nil, durationMs: 15, error: "TypeError: Failed to fetch"),
         ],
         onClearLogs: {},

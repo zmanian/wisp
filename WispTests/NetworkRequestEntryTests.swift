@@ -69,12 +69,22 @@ struct NetworkRequestEntryTests {
     // MARK: - Initialisation
 
     @Test func entryStoresAllFields() {
-        let entry = NetworkRequestEntry(method: "POST", urlString: "https://api.example.com/data", status: 201, durationMs: 88, error: nil)
+        let entry = NetworkRequestEntry(
+            method: "POST",
+            urlString: "https://api.example.com/data",
+            status: 201,
+            durationMs: 88,
+            error: nil,
+            requestBody: "{\"name\":\"test\"}",
+            responseBody: "{\"id\":1}"
+        )
         #expect(entry.method == "POST")
         #expect(entry.urlString == "https://api.example.com/data")
         #expect(entry.status == 201)
         #expect(entry.durationMs == 88)
         #expect(entry.error == nil)
+        #expect(entry.requestBody == "{\"name\":\"test\"}")
+        #expect(entry.responseBody == "{\"id\":1}")
     }
 
     @Test func eachEntryHasUniqueID() {
@@ -86,18 +96,37 @@ struct NetworkRequestEntryTests {
     // MARK: - Message body parsing (mirrors WeakScriptMessageHandler logic)
 
     @Test func parsesValidSuccessBody() {
-        let body: [String: Any] = ["method": "GET", "url": "https://example.com/api", "status": 200, "duration": 45.0]
+        let body: [String: Any] = [
+            "method": "GET",
+            "url": "https://example.com/api",
+            "status": 200,
+            "duration": 45.0,
+            "requestBody": "{\"key\":\"value\"}",
+            "responseBody": "[1,2,3]"
+        ]
         let method = body["method"] as? String
         let urlString = body["url"] as? String
         let status = body["status"] as? Int
         let durationMs = body["duration"] as? Double ?? 0
         let error = body["error"] as? String
+        let requestBody = body["requestBody"] as? String
+        let responseBody = body["responseBody"] as? String
 
         #expect(method == "GET")
         #expect(urlString == "https://example.com/api")
         #expect(status == 200)
         #expect(durationMs == 45.0)
         #expect(error == nil)
+        #expect(requestBody == "{\"key\":\"value\"}")
+        #expect(responseBody == "[1,2,3]")
+    }
+
+    @Test func nilBodyFieldsAbsentFromDict() {
+        let body: [String: Any] = ["method": "GET", "url": "https://example.com/api", "status": 200, "duration": 10.0]
+        let requestBody = body["requestBody"] as? String
+        let responseBody = body["responseBody"] as? String
+        #expect(requestBody == nil)
+        #expect(responseBody == nil)
     }
 
     @Test func parsesValidErrorBody() {

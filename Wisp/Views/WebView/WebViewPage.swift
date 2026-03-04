@@ -29,7 +29,19 @@ struct NetworkRequestEntry: Identifiable {
     let status: Int?       // nil means network error before response
     let durationMs: Double
     let error: String?
+    let requestBody: String?
+    let responseBody: String?
     let timestamp: Date = .now
+
+    init(method: String, urlString: String, status: Int?, durationMs: Double, error: String?, requestBody: String? = nil, responseBody: String? = nil) {
+        self.method = method
+        self.urlString = urlString
+        self.status = status
+        self.durationMs = durationMs
+        self.error = error
+        self.requestBody = requestBody
+        self.responseBody = responseBody
+    }
 
     var statusColor: Color {
         guard let status else { return .red }
@@ -130,20 +142,42 @@ struct WebViewPage: UIViewRepresentable {
             const h = window.webkit?.messageHandlers?.networkRequest;
             if (!h) return;
 
+            const MAX = 50000;
+            function truncate(s) {
+                if (!s || s.length <= MAX) return s;
+                return s.slice(0, MAX) + '\\n...[truncated]';
+            }
+            function bodyStr(b) {
+                if (b == null) return null;
+                if (typeof b === 'string') return truncate(b) || null;
+                if (b instanceof URLSearchParams) return truncate(b.toString()) || null;
+                return null;
+            }
+
             // Intercept fetch
             const origFetch = window.fetch;
             if (origFetch) {
                 window.fetch = function(input, init) {
                     const url = input instanceof Request ? input.url : String(input);
                     const method = (init?.method || (input instanceof Request ? input.method : null) || 'GET').toUpperCase();
+                    const reqBody = bodyStr(init?.body);
                     const start = Date.now();
                     return Promise.resolve(origFetch.call(window, input, init)).then(
                         function(r) {
-                            try { h.postMessage({method: method, url: url, status: r.status, duration: Date.now() - start}); } catch(e) {}
+                            const status = r.status;
+                            const dur = Date.now() - start;
+                            r.clone().text().then(
+                                function(text) {
+                                    try { h.postMessage({method: method, url: url, status: status, duration: dur, requestBody: reqBody, responseBody: truncate(text) || null}); } catch(e) {}
+                                },
+                                function() {
+                                    try { h.postMessage({method: method, url: url, status: status, duration: dur, requestBody: reqBody}); } catch(e) {}
+                                }
+                            );
                             return r;
                         },
                         function(err) {
-                            try { h.postMessage({method: method, url: url, status: null, duration: Date.now() - start, error: String(err)}); } catch(e) {}
+                            try { h.postMessage({method: method, url: url, status: null, duration: Date.now() - start, error: String(err), requestBody: reqBody}); } catch(e) {}
                             throw err;
                         }
                     );
@@ -161,6 +195,7 @@ struct WebViewPage: UIViewRepresentable {
             XMLHttpRequest.prototype.send = function(body) {
                 const start = Date.now();
                 const self = this;
+                const reqBody = bodyStr(body);
                 this.addEventListener('loadend', function() {
                     try {
                         h.postMessage({
@@ -168,7 +203,9 @@ struct WebViewPage: UIViewRepresentable {
                             url: self._nu || '',
                             status: self.status || null,
                             duration: Date.now() - start,
-                            error: self.status === 0 ? 'Network error' : null
+                            error: self.status === 0 ? 'Network error' : null,
+                            requestBody: reqBody,
+                            responseBody: truncate(self.responseText) || null
                         });
                     } catch(e) {}
                 });
@@ -206,13 +243,17 @@ struct WebViewPage: UIViewRepresentable {
                 let status = body["status"] as? Int
                 let durationMs = body["duration"] as? Double ?? 0
                 let error = body["error"] as? String
+                let requestBody = body["requestBody"] as? String
+                let responseBody = body["responseBody"] as? String
                 Task { @MainActor [weak self] in
                     let entry = NetworkRequestEntry(
                         method: method,
                         urlString: urlString,
                         status: status,
                         durationMs: durationMs,
-                        error: error
+                        error: error,
+                        requestBody: requestBody,
+                        responseBody: responseBody
                     )
                     self?.coordinator?.state.networkRequests.append(entry)
                 }
