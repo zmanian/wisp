@@ -39,3 +39,9 @@ struct UserBubbleView: View {
         }
     }
 }
+
+#Preview {
+    let message = ChatMessage(role: .user, content: [.text("Can you add a README to this project?")])
+    UserBubbleView(message: message)
+        .padding()
+}
