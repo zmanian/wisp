@@ -47,7 +47,7 @@ struct ChatInputBar: View {
                 if let onBrowseSpriteFiles, let onPickPhoto, let onPickFile {
                     ChatAttachmentButton(
                         isUploading: isUploading,
-                        isDisabled: isStreaming || hasQueuedMessage,
+                        isDisabled: hasQueuedMessage,
                         onBrowseSpriteFiles: onBrowseSpriteFiles,
                         onPickPhoto: onPickPhoto,
                         onPickFile: onPickFile
@@ -80,7 +80,7 @@ struct ChatInputBar: View {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title2)
                 }
-                .tint(isEmpty || hasQueuedMessage ? .gray : Color.accentColor)
+                .tint(isEmpty || hasQueuedMessage ? .gray : Color("AccentColor"))
                 .disabled(isEmpty || hasQueuedMessage)
                 .buttonStyle(.glass)
             }

@@ -155,7 +155,7 @@ struct ChatView: View {
         .sheet(isPresented: $showFileBrowser) {
             SpriteFileBrowserView(
                 spriteName: viewModel.spriteName,
-                startingDirectory: viewModel.currentWorkingDirectory,
+                startingDirectory: viewModel.workingDirectory,
                 apiClient: apiClient,
                 onFileSelected: { path in
                     let name = (path as NSString).lastPathComponent
@@ -211,6 +211,7 @@ struct ChatView: View {
         ChatMessageView(
             message: message,
             isStreaming: viewModel.isStreaming && message.id == viewModel.currentAssistantMessageId,
+            workingDirectory: viewModel.workingDirectory,
             onCreateCheckpoint: isLastAssistant ? {
                 viewModel.createCheckpoint(for: message, modelContext: modelContext)
             } : nil,

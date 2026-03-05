@@ -1,4 +1,3 @@
-import ActivityKit
 import Foundation
 import FoundationModels
 import os
@@ -24,6 +23,15 @@ struct AttachedFile: Identifiable {
     let id = UUID()
     let name: String   // "main.py" or "photo_20260228.jpg"
     let path: String   // "/home/sprite/project/main.py"
+
+    static let imageExtensions: Set<String> = [
+        "jpg", "jpeg", "png", "gif", "heic", "webp", "tiff", "bmp", "svg",
+    ]
+
+    var isImage: Bool {
+        let ext = (name as NSString).pathExtension.lowercased()
+        return Self.imageExtensions.contains(ext)
+    }
 }
 
 @Observable
@@ -42,7 +50,7 @@ final class ChatViewModel {
 
     private var serviceName: String
     private var sessionId: String?
-    private var workingDirectory: String
+    var workingDirectory: String
     private var worktreePath: String?
     private var streamTask: Task<Void, Never>?
     var namingTask: Task<String, Never>?
@@ -64,14 +72,6 @@ final class ChatViewModel {
     private var processedEventUUIDs: Set<String> = []
     private var hasPlayedFirstTextHaptic = false
 
-    // Live Activity tracking state
-    private var liveActivityBottomText: String = "Thinking..."
-    private var liveActivityYellowIntent: String?
-    private var liveActivityGreyIntent: String?
-    private var liveActivityStepNumber: Int = 1
-    private var liveActivitySubject: String?
-    private var liveActivityCurrentIcon: String?
-
     init(spriteName: String, chatId: UUID, currentServiceName: String?, workingDirectory: String) {
         self.spriteName = spriteName
         self.chatId = chatId
@@ -87,19 +87,25 @@ final class ChatViewModel {
     var lastUploadedFileName: String?
     private var uploadFeedbackTask: Task<Void, Never>?
 
-    var currentWorkingDirectory: String { workingDirectory }
+    private static let maxUploadBytes: Int = 10 * 1024 * 1024 // 10 MB
 
     func uploadFileFromDevice(apiClient: SpritesAPIClient, fileURL: URL) async -> String? {
         let accessing = fileURL.startAccessingSecurityScopedResource()
+        defer { if accessing { fileURL.stopAccessingSecurityScopedResource() } }
+
+        if let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+           size > Self.maxUploadBytes {
+            uploadAttachmentError = "File is too large to upload (max 10 MB)"
+            return nil
+        }
+
         let data: Data
         do {
             data = try Data(contentsOf: fileURL)
         } catch {
-            if accessing { fileURL.stopAccessingSecurityScopedResource() }
             uploadAttachmentError = "Failed to read file: \(error.localizedDescription)"
             return nil
         }
-        if accessing { fileURL.stopAccessingSecurityScopedResource() }
 
         return await uploadAttachmentData(apiClient: apiClient, data: data, filename: fileURL.lastPathComponent)
     }
@@ -121,7 +127,7 @@ final class ChatViewModel {
         defer { isUploadingAttachment = false }
 
         do {
-            let _ = try await apiClient.uploadFile(
+            try await apiClient.uploadFile(
                 spriteName: spriteName,
                 remotePath: remotePath,
                 data: data
@@ -434,19 +440,10 @@ final class ChatViewModel {
         queuedAttachments = []
     }
 
-    private static let imageExtensions: Set<String> = [
-        "jpg", "jpeg", "png", "gif", "heic", "webp", "tiff", "bmp", "svg",
-    ]
-
-    private static func isImage(_ filename: String) -> Bool {
-        let ext = (filename as NSString).pathExtension.lowercased()
-        return imageExtensions.contains(ext)
-    }
-
     private func buildPrompt(text: String, attachments: [AttachedFile]) -> String {
         guard !attachments.isEmpty else { return text }
-        let images = attachments.filter { Self.isImage($0.name) }
-        let files = attachments.filter { !Self.isImage($0.name) }
+        let images = attachments.filter { $0.isImage }
+        let files = attachments.filter { !$0.isImage }
 
         var parts: [String] = []
 
@@ -668,12 +665,6 @@ final class ChatViewModel {
         turnHasMutations = false
         processedEventUUIDs = []
         hasPlayedFirstTextHaptic = false
-
-        resetLiveActivityState()
-        let activityStarted = LiveActivityManager.shared.startActivity(spriteName: spriteName, userTask: prompt)
-        if !activityStarted, let error = LiveActivityManager.shared.lastError {
-            logger.warning("Live Activity not started: \(error)")
-        }
 
         logger.info("Service command: \(Self.sanitize(fullCommand))")
 
@@ -945,7 +936,6 @@ final class ChatViewModel {
         logger.info("[Chat] Reconnecting to service logs (\(priorUUIDs) prior UUIDs)")
 
         hasPlayedFirstTextHaptic = false
-        resetLiveActivityState()
 
         // Ensure we have an assistant message to append into.
         // Only clear content if we have no prior events to skip (cold reconnect).
@@ -1039,6 +1029,7 @@ final class ChatViewModel {
             receivedSystemEvent = true
             sessionId = systemEvent.sessionId
             modelName = systemEvent.model
+            if let cwd = systemEvent.cwd { workingDirectory = cwd }
             logger.info("System event tools: \(systemEvent.tools ?? [], privacy: .public)")
             saveSession(modelContext: modelContext)
 
@@ -1051,8 +1042,6 @@ final class ChatViewModel {
                     if !hasPlayedFirstTextHaptic {
                         hasPlayedFirstTextHaptic = true
                         fireHaptic(.medium)
-                        // Live Activity: Claude started responding = task done
-                        LiveActivityManager.shared.endActivity()
                     }
                     // Merge consecutive text blocks
                     if case .text(let existing) = message.content.last {
@@ -1075,11 +1064,6 @@ final class ChatViewModel {
                     if ["Write", "Edit"].contains(toolUse.name) {
                         turnHasMutations = true
                     }
-                    // Live Activity: update with new tool step
-                    liveActivityBottomText = card.activityLabel
-                    liveActivityCurrentIcon = card.iconName
-                    liveActivityStepNumber += 1
-                    pushLiveActivityUpdate()
                 case .unknown:
                     break
                 }
@@ -1101,11 +1085,6 @@ final class ChatViewModel {
                 for item in message.content {
                     if case .toolUse(let toolCard) = item, toolCard.toolUseId == result.toolUseId {
                         toolCard.result = resultCard
-                        // Live Activity: tool completed, shift intent stack
-                        shiftThinkingIntent(toolCard.activityLabel)
-                        liveActivityBottomText = "Thinking..."
-                        liveActivityCurrentIcon = nil
-                        pushLiveActivityUpdate()
                         break
                     }
                 }
@@ -1119,8 +1098,6 @@ final class ChatViewModel {
             receivedResultEvent = true
             sessionId = resultEvent.sessionId
             saveSession(modelContext: modelContext)
-            // Live Activity: fallback end if text block didn't end it
-            LiveActivityManager.shared.endActivity()
 
             let autoCheckpointEnabled = UserDefaults.standard.bool(forKey: "autoCheckpoint")
             if turnHasMutations, autoCheckpointEnabled, let apiClient {
@@ -1434,38 +1411,6 @@ final class ChatViewModel {
 
     private func fireHaptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
         UIImpactFeedbackGenerator(style: style).impactOccurred()
-    }
-
-    // MARK: - Live Activity Helpers
-
-    private func shiftThinkingIntent(_ newIntent: String) {
-        // Shift: yellow -> grey, new -> yellow
-        liveActivityGreyIntent = liveActivityYellowIntent
-        liveActivityYellowIntent = newIntent
-        // Latch first intent as subject
-        if liveActivitySubject == nil {
-            liveActivitySubject = newIntent
-        }
-    }
-
-    private func pushLiveActivityUpdate() {
-        LiveActivityManager.shared.update(
-            subject: liveActivitySubject,
-            currentIntent: liveActivityBottomText,
-            currentIntentIcon: liveActivityCurrentIcon,
-            previousIntent: liveActivityYellowIntent,
-            secondPreviousIntent: liveActivityGreyIntent,
-            stepNumber: liveActivityStepNumber
-        )
-    }
-
-    private func resetLiveActivityState() {
-        liveActivityBottomText = "Thinking..."
-        liveActivityYellowIntent = nil
-        liveActivityGreyIntent = nil
-        liveActivityStepNumber = 1
-        liveActivitySubject = nil
-        liveActivityCurrentIcon = nil
     }
 
     #if DEBUG
