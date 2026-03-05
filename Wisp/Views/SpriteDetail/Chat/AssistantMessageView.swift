@@ -22,28 +22,13 @@ struct AssistantMessageView: View {
                 ForEach(message.content.indices, id: \.self) { index in
                     switch message.content[index] {
                     case .text(let text):
-                        Markdown(text)
-                            .markdownTheme(.wisp)
-                            .markdownCodeSyntaxHighlighter(WispCodeHighlighter())
-                            .textSelection(.enabled)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 16))
-                            .contextMenu {
-                                Button {
-                                    UIPasteboard.general.string = text
-                                } label: {
-                                    Label("Copy", systemImage: "doc.on.doc")
-                                }
-                                if canCheckpoint {
-                                    Button {
-                                        onCreateCheckpoint?()
-                                    } label: {
-                                        Label("Create Checkpoint", systemImage: "diamond")
-                                    }
-                                    .disabled(isCheckpointDisabled)
-                                }
-                            }
+                        AssistantTextBubble(
+                            text: text,
+                            timestamp: message.timestamp,
+                            canCheckpoint: canCheckpoint,
+                            isCheckpointDisabled: isCheckpointDisabled,
+                            onCreateCheckpoint: onCreateCheckpoint
+                        )
                     case .toolUse(let card):
                         if card.toolName == "TodoWrite" {
                             PlanCardView(card: card)
@@ -83,12 +68,60 @@ struct AssistantMessageView: View {
                             .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                     }
                 }
-
             }
             Spacer(minLength: 60)
         }
         .sheet(item: $selectedToolCard) { card in
             ToolDetailSheet(card: card, workingDirectory: workingDirectory)
+        }
+    }
+}
+
+private struct AssistantTextBubble: View {
+    let text: String
+    let timestamp: Date
+    var canCheckpoint: Bool = false
+    var isCheckpointDisabled: Bool = false
+    var onCreateCheckpoint: (() -> Void)? = nil
+
+    @State private var showTimestamp = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Markdown(text)
+                .markdownTheme(.wisp)
+                .markdownCodeSyntaxHighlighter(WispCodeHighlighter())
+                .textSelection(.enabled)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 16))
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = text
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                    if canCheckpoint {
+                        Button {
+                            onCreateCheckpoint?()
+                        } label: {
+                            Label("Create Checkpoint", systemImage: "diamond")
+                        }
+                        .disabled(isCheckpointDisabled)
+                    }
+                }
+            if showTimestamp {
+                Text(timestamp.chatTimestamp)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 4)
+                    .transition(.opacity)
+            }
+        }
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showTimestamp.toggle()
+            }
         }
     }
 }
