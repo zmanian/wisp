@@ -47,7 +47,7 @@ struct ChatInputBar: View {
                 if let onBrowseSpriteFiles, let onPickPhoto, let onPickFile {
                     ChatAttachmentButton(
                         isUploading: isUploading,
-                        isDisabled: isStreaming || hasQueuedMessage,
+                        isDisabled: hasQueuedMessage,
                         onBrowseSpriteFiles: onBrowseSpriteFiles,
                         onPickPhoto: onPickPhoto,
                         onPickFile: onPickFile
