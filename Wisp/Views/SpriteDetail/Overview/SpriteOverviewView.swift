@@ -35,20 +35,6 @@ struct SpriteOverviewView: View {
                     }
                 }
 
-                if viewModel.sprite.status == .warm || viewModel.sprite.status == .cold {
-                    Button {
-                        Task { await viewModel.wakeSprite(apiClient: apiClient) }
-                    } label: {
-                        HStack {
-                            Label("Wake Sprite", systemImage: "bolt.fill")
-                            Spacer()
-                            if viewModel.isWaking {
-                                ProgressView()
-                            }
-                        }
-                    }
-                    .disabled(viewModel.isWaking || !viewModel.hasLoaded)
-                }
             }
 
             Section("Details") {
@@ -255,6 +241,9 @@ struct SpriteOverviewView: View {
             await viewModel.refresh(apiClient: apiClient)
             await viewModel.checkSpritesAuth(apiClient: apiClient)
             await viewModel.checkGitHubAuth(apiClient: apiClient)
+        }
+        .task {
+            await viewModel.pollStatus(apiClient: apiClient)
         }
         .onChange(of: workingDirectory) {
             saveWorkingDirectory()
