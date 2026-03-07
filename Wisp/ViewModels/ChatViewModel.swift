@@ -1436,19 +1436,15 @@ final class ChatViewModel {
                 remotePath: ClaudeQuestionTool.serverPyPath,
                 data: Data(ClaudeQuestionTool.serverScript.utf8)
             )
-            try await apiClient.uploadFile(
-                spriteName: spriteName,
-                remotePath: ClaudeQuestionTool.versionPath,
-                data: Data(ClaudeQuestionTool.version.utf8)
-            )
         } catch {
             logger.error("Claude question tool installation failed: \(error)")
             return false
         }
-        // Make server.py executable
+        // Make server.py executable and write version file via exec
+        // (the fs/write API corrupts very small payloads to null bytes)
         _ = await apiClient.runExec(
             spriteName: spriteName,
-            command: ClaudeQuestionTool.chmodCommand,
+            command: "\(ClaudeQuestionTool.chmodCommand) && mkdir -p ~/.wisp/claude-question && echo -n '\(ClaudeQuestionTool.version)' > \(ClaudeQuestionTool.versionPath)",
             timeout: 10
         )
         return true
