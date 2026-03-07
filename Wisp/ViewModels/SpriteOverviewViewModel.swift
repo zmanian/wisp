@@ -20,6 +20,7 @@ final class SpriteOverviewViewModel {
     var spritesCLIAuthStatus: SpritesCLIAuth = .unknown
     var isAuthenticatingSprites = false
     var errorMessage: String?
+    var isWaking = false
     var isUploading = false
     var uploadResult: SpritesAPIClient.FileUploadResponse?
     var uploadError: String?
@@ -48,6 +49,29 @@ final class SpriteOverviewViewModel {
 
         hasLoaded = true
         isRefreshing = false
+    }
+
+    func wakeSprite(apiClient: SpritesAPIClient) async {
+        isWaking = true
+        defer { isWaking = false }
+
+        // Fire a no-op exec to trigger the wake
+        _ = await apiClient.runExec(spriteName: sprite.name, command: "true", timeout: 30)
+
+        // Poll until running or timeout (~30s)
+        let deadline = Date().addingTimeInterval(30)
+        while Date() < deadline {
+            do {
+                sprite = try await apiClient.getSprite(name: sprite.name)
+                if sprite.status == .running {
+                    return
+                }
+            } catch {
+                errorMessage = error.localizedDescription
+                return
+            }
+            try? await Task.sleep(for: .seconds(1))
+        }
     }
 
     func togglePublicAccess(apiClient: SpritesAPIClient) async {
