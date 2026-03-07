@@ -34,6 +34,21 @@ struct SpriteOverviewView: View {
                         ProgressView()
                     }
                 }
+
+                if viewModel.sprite.status == .warm || viewModel.sprite.status == .cold {
+                    Button {
+                        Task { await viewModel.wakeSprite(apiClient: apiClient) }
+                    } label: {
+                        HStack {
+                            Label("Wake Sprite", systemImage: "bolt.fill")
+                            Spacer()
+                            if viewModel.isWaking {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(viewModel.isWaking || !viewModel.hasLoaded)
+                }
             }
 
             Section("Details") {
