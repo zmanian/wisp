@@ -203,7 +203,7 @@ final class SpriteOverviewViewModel {
         claudeCodeVersionStatus = .updating
         let (output, success) = await apiClient.runExec(
             spriteName: sprite.name,
-            command: "npm install -g @anthropic-ai/claude-code@latest 2>&1 && claude --version",
+            command: "claude update --yes 2>&1 && claude --version",
             timeout: 120
         )
         if success {
