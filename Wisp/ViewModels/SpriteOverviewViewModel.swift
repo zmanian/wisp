@@ -65,23 +65,29 @@ final class SpriteOverviewViewModel {
         isWaking = true
         defer { isWaking = false }
 
-        // Fire a no-op exec to trigger the wake
-        _ = await apiClient.runExec(spriteName: sprite.name, command: "true", timeout: 30)
+        // Fire a no-op exec to trigger the wake — don't await completion
+        // since the WebSocket may fail on a cold sprite before it finishes waking
+        let execTask = Task {
+            _ = await apiClient.runExec(spriteName: sprite.name, command: "true", timeout: 60)
+        }
 
-        // Poll until running or timeout (~30s)
-        let deadline = Date().addingTimeInterval(30)
+        // Poll until running or timeout (~60s, cold starts can take a while)
+        let deadline = Date().addingTimeInterval(60)
         while Date() < deadline {
+            try? await Task.sleep(for: .seconds(2))
             do {
                 sprite = try await apiClient.getSprite(name: sprite.name)
                 if sprite.status == .running {
+                    execTask.cancel()
                     return
                 }
             } catch {
                 errorMessage = error.localizedDescription
+                execTask.cancel()
                 return
             }
-            try? await Task.sleep(for: .seconds(1))
         }
+        execTask.cancel()
     }
 
     func togglePublicAccess(apiClient: SpritesAPIClient) async {
