@@ -233,7 +233,7 @@ final class SpriteOverviewViewModel {
         claudeCodeVersionStatus = .updating
         let (output, success) = await apiClient.runExec(
             spriteName: sprite.name,
-            command: "claude update --yes 2>&1 && claude --version",
+            command: "claude update 2>&1 && claude --version",
             timeout: 120
         )
         if success {
