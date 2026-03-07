@@ -74,20 +74,24 @@ struct ChatInputBar: View {
                     .buttonStyle(.glass)
                 }
 
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(isEmpty || hasQueuedMessage ? .gray : Color("AccentColor"))
-                    .glassEffect(in: .circle)
-                    .opacity(isEmpty || hasQueuedMessage ? 0.5 : 1)
-                    .onTapGesture {
-                        guard !isEmpty && !hasQueuedMessage else { return }
-                        isFocused.wrappedValue = false
-                        onSend()
-                    }
-                    .onLongPressGesture {
-                        guard !isEmpty && !hasQueuedMessage else { return }
-                        onLongPressSend?()
-                    }
+                Button {
+                    isFocused.wrappedValue = false
+                    onSend()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title2)
+                }
+                .tint(isEmpty || hasQueuedMessage ? .gray : Color("AccentColor"))
+                .disabled(isEmpty || hasQueuedMessage)
+                .buttonStyle(.glass)
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .onEnded { _ in
+                            if !isEmpty && !hasQueuedMessage {
+                                onLongPressSend?()
+                            }
+                        }
+                )
             }
         }
         .animation(.easeInOut(duration: 0.2), value: attachedFiles.count)
