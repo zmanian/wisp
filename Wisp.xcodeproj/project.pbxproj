@@ -101,6 +101,8 @@
 		D1A2B3C4E5F60200BB000014 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60100AA000007 /* LiveActivityManager.swift */; };
 		D1A2B3C4E5F60200BB000015 /* WispActivityWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60100AA000006 /* WispActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C4D5E6F7A8B90A41637E8FA2 /* CheckpointMarkerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */; };
+		AA00BB11CC22DD33EE44FF10 /* LoopModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00BB11CC22DD33EE44FF0F /* LoopModels.swift */; };
+		AA00BB11CC22DD33EE44FF12 /* LoopModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00BB11CC22DD33EE44FF11 /* LoopModelTests.swift */; };
 		D5E6F7A8B9C00B52748FA0B2 /* AutoCheckpointTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */; };
 		E7F8A9B0C1D2E3F405A6B7C2 /* ChatNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F8A9B0C1D2E3F405A6B7C1 /* ChatNameTests.swift */; };
 		E1F2A3B4C5D6E7F800000012 /* WispCodeHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000001 /* WispCodeHighlighter.swift */; };
@@ -189,6 +191,8 @@
 		C8F1378232DC7FA71A8B5444 /* ClaudeStreamParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeStreamParser.swift; sourceTree = "<group>"; };
 		D0AD6D912964E32FC8685EA3 /* CheckpointsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckpointsViewModel.swift; sourceTree = "<group>"; };
 		D6BE6E0D68BBB35DE56600E1 /* SpriteSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteSession.swift; sourceTree = "<group>"; };
+		AA00BB11CC22DD33EE44FF0F /* LoopModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopModels.swift; sourceTree = "<group>"; };
+		AA00BB11CC22DD33EE44FF11 /* LoopModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopModelTests.swift; sourceTree = "<group>"; };
 		D9BC746AE628458445D34FCE /* ChatMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageView.swift; sourceTree = "<group>"; };
 		DD9CB342E72F33408AA0CB63 /* WispApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispApp.swift; sourceTree = "<group>"; };
 		E01E14B5D87751457C549C17 /* SpritesAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpritesAPIClient.swift; sourceTree = "<group>"; };
@@ -357,6 +361,7 @@
 				F1E2D3C4B5A60798192A3B4C /* PersistedChatMessage.swift */,
 				A1B2C3D4E5F60718293A4B5D /* SpriteChat.swift */,
 				D6BE6E0D68BBB35DE56600E1 /* SpriteSession.swift */,
+				AA00BB11CC22DD33EE44FF0F /* LoopModels.swift */,
 			);
 			path = Local;
 			sourceTree = "<group>";
@@ -597,6 +602,7 @@
 				DD11EE22FF334455AA66BB03 /* ServiceTypesTests.swift */,
 				EE22FF334455AA66BB770001 /* ExecSessionURLTests.swift */,
 				CC11DD22EE33FF4400110005 /* FileEntryTests.swift */,
+				AA00BB11CC22DD33EE44FF11 /* LoopModelTests.swift */,
 			);
 			path = WispTests;
 			sourceTree = "<group>";
@@ -814,6 +820,7 @@
 				D1A2B3C4E5F60200BB000010 /* WispActivityAttributes.swift in Sources */,
 				D1A2B3C4E5F60200BB000014 /* LiveActivityManager.swift in Sources */,
 				C4D5E6F7A8B90A41637E8FA2 /* CheckpointMarkerView.swift in Sources */,
+				AA00BB11CC22DD33EE44FF10 /* LoopModels.swift in Sources */,
 				C575C7232C5FCA1A3F18A9D8 /* WispApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -850,6 +857,7 @@
 				D5E6F7A8B9C00B52748FA0B2 /* AutoCheckpointTests.swift in Sources */,
 				E7F8A9B0C1D2E3F405A6B7C2 /* ChatNameTests.swift in Sources */,
 				CC11DD22EE33FF4400110006 /* FileEntryTests.swift in Sources */,
+				AA00BB11CC22DD33EE44FF12 /* LoopModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
