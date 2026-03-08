@@ -574,12 +574,12 @@ final class ChatViewModel {
     ) async {
         status = .connecting
 
-        // Wait for MCP setup to finish (no-op if setup task not running or already done)
+        // Wait for MCP setup to finish (best-effort — don't block chat if it fails)
+        var questionToolInstalled = false
         if UserDefaults.standard.bool(forKey: "claudeQuestionTool") {
-            let toolReady = await mcpSetupTask?.value ?? false
-            if !toolReady {
-                status = .error("Claude question tool failed to install — disable it in Settings or try again")
-                return
+            questionToolInstalled = await mcpSetupTask?.value ?? false
+            if !questionToolInstalled {
+                logger.warning("Question tool install failed — proceeding without it")
             }
         }
 
@@ -628,7 +628,7 @@ final class ChatViewModel {
         }
 
         var claudeCmd = "claude -p --verbose --output-format stream-json --dangerously-skip-permissions"
-        if UserDefaults.standard.bool(forKey: "claudeQuestionTool") {
+        if questionToolInstalled {
             let sessionId = chatId.uuidString.lowercased()
             let configPath = ClaudeQuestionTool.mcpConfigFilePath(for: sessionId)
             // Write per-session MCP config (inlined in the command chain so no extra round-trip)
