@@ -343,47 +343,28 @@ final class LoopManager {
                 let parser = ClaudeStreamParser()
                 var responseText = ""
                 var gotData = false
-                var debugEventCounts: [String: Int] = [:]
-                var debugStdoutChunks = 0
-                var debugBase64Failures = 0
-                var debugClaudeEventCounts: [String: Int] = [:]
-                var debugFirstStdout: String?
 
                 do {
                     for try await event in stream {
                         try Task.checkCancellation()
                         gotData = true
-                        debugEventCounts[event.type.rawValue, default: 0] += 1
-                        guard event.type == .stdout, let base64Data = event.data else { continue }
-                        debugStdoutChunks += 1
-                        guard let rawData = Data(base64Encoded: base64Data) else {
-                            debugBase64Failures += 1
-                            continue
-                        }
-                        if debugFirstStdout == nil {
-                            debugFirstStdout = String(data: rawData, encoding: .utf8)?.prefix(500).description
-                        }
+                        guard event.type == .stdout, let stdoutText = event.data else { continue }
+                        let rawData = Data(stdoutText.utf8)
                         let claudeEvents = await parser.parse(data: rawData)
                         for claudeEvent in claudeEvents {
                             switch claudeEvent {
                             case .assistant(let assistantEvent):
-                                debugClaudeEventCounts["assistant", default: 0] += 1
                                 for block in assistantEvent.message.content {
                                     if case .text(let text) = block {
                                         responseText += text
                                     }
                                 }
                             case .result(let resultEvent):
-                                debugClaudeEventCounts["result", default: 0] += 1
                                 if let text = resultEvent.result, !text.isEmpty {
                                     responseText += text
                                 }
-                            case .system:
-                                debugClaudeEventCounts["system", default: 0] += 1
-                            case .user:
-                                debugClaudeEventCounts["user", default: 0] += 1
-                            case .unknown(let type):
-                                debugClaudeEventCounts["unknown:\(type)", default: 0] += 1
+                            default:
+                                break
                             }
                         }
                     }
@@ -430,18 +411,7 @@ final class LoopManager {
                     return .failure(CancellationError())
                 }
 
-                if responseText.isEmpty {
-                    let debug = """
-                    [DEBUG] serviceEvents=\(debugEventCounts) \
-                    stdoutChunks=\(debugStdoutChunks) \
-                    base64Failures=\(debugBase64Failures) \
-                    claudeEvents=\(debugClaudeEventCounts) \
-                    firstStdout=\(debugFirstStdout?.prefix(300) ?? "nil")
-                    """
-                    logger.warning("Loop produced no response: \(debug)")
-                    return .success(debug)
-                }
-                return .success(responseText)
+                return .success(responseText.isEmpty ? "(No response)" : responseText)
             }
 
             // All retries exhausted
