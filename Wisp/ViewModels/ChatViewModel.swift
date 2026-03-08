@@ -572,12 +572,25 @@ final class ChatViewModel {
         serviceName = "wisp-claude-\(UUID().uuidString.prefix(8).lowercased())"
         try? await apiClient.deleteService(spriteName: spriteName, serviceName: oldServiceName)
 
+        let wakeOutcome: SpriteWakeOutcome
+        do {
+            wakeOutcome = try await apiClient.wakeSpriteIfNeeded(name: spriteName, timeout: 25)
+        } catch {
+            logger.error("Sprite wake failed before chat send: \(Self.sanitize(error.localizedDescription), privacy: .public)")
+            status = .error("Network error waking sprite — check your connection and try again")
+            return
+        }
+
         // Install question tool (best-effort — don't block chat if it fails)
         var questionToolInstalled = false
         if UserDefaults.standard.bool(forKey: "claudeQuestionTool") {
-            questionToolInstalled = await installClaudeQuestionToolIfNeeded(apiClient: apiClient)
-            if !questionToolInstalled {
-                logger.warning("Question tool install failed — proceeding without it")
+            if case .timedOut = wakeOutcome {
+                logger.info("Skipping question tool install because sprite is still warming; chat send will continue")
+            } else {
+                questionToolInstalled = await installClaudeQuestionToolIfNeeded(apiClient: apiClient)
+                if !questionToolInstalled {
+                    logger.warning("Question tool install failed — proceeding without it")
+                }
             }
         }
 

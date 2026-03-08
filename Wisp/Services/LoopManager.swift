@@ -299,9 +299,17 @@ final class LoopManager {
             return .failure(NSError(domain: "LoopManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "No API client configured"]))
         }
 
-        // 1. Build command (skip separate wake — streamService PUT triggers wake; retries handle 503s)
         guard let claudeToken = apiClient.claudeToken else {
             return .failure(NSError(domain: "LoopManager", code: -2, userInfo: [NSLocalizedDescriptionKey: "No Claude token configured"]))
+        }
+
+        do {
+            let wakeOutcome = try await apiClient.wakeSpriteIfNeeded(name: spriteName, timeout: 45)
+            if case .timedOut = wakeOutcome {
+                logger.info("Sprite still warming before loop execution; continuing because service start retries can finish the wake")
+            }
+        } catch {
+            return .failure(error)
         }
 
         let escapedPrompt = prompt.replacingOccurrences(of: "'", with: "'\\''")
