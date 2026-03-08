@@ -1413,54 +1413,69 @@ final class ChatViewModel {
     #endif
 
     private func installClaudeQuestionToolIfNeeded(apiClient: SpritesAPIClient) async -> Bool {
-        let (output, _) = await apiClient.runExec(
-            spriteName: spriteName,
-            command: ClaudeQuestionTool.checkVersionCommand,
-            timeout: 10
-        )
-        guard output.trimmingCharacters(in: .whitespacesAndNewlines) != ClaudeQuestionTool.version else {
-            return true  // already up to date
-        }
-        logger.info("Installing Claude question tool (version \(ClaudeQuestionTool.version))...")
-        do {
-            // Write files directly via the REST filesystem API to avoid shell command length limits
-            try await apiClient.uploadFile(
+        // Retry the entire install up to 3 times — the sprite may still be waking
+        for attempt in 1...3 {
+            if attempt > 1 {
+                logger.info("Retrying question tool install (attempt \(attempt)/3)")
+                try? await Task.sleep(for: .seconds(5))
+            }
+
+            let (output, versionCheckSuccess) = await apiClient.runExec(
                 spriteName: spriteName,
-                remotePath: ClaudeQuestionTool.serverPyPath,
-                data: Data(ClaudeQuestionTool.serverScript.utf8)
+                command: ClaudeQuestionTool.checkVersionCommand,
+                timeout: 15
             )
-        } catch {
-            logger.error("Claude question tool installation failed: \(error)")
-            return false
-        }
-        // Make server.py executable and write version file via exec
-        // (the fs/write API corrupts very small payloads to null bytes)
-        let installCommand = "\(ClaudeQuestionTool.chmodCommand) && mkdir -p ~/.wisp/claude-question && echo -n '\(ClaudeQuestionTool.version)' > \(ClaudeQuestionTool.versionPath)"
-        let (installOutput, installSuccess) = await apiClient.runExec(
-            spriteName: spriteName,
-            command: installCommand,
-            timeout: 10
-        )
-        guard installSuccess else {
-            let trimmedOutput = installOutput.trimmingCharacters(in: .whitespacesAndNewlines)
-            logger.error("Claude question tool install command failed: \(trimmedOutput)")
-            return false
-        }
+            // If version check exec failed (sprite not ready), retry
+            if !versionCheckSuccess && attempt < 3 { continue }
 
-        let verificationCommand =
-            "if test -x \(ClaudeQuestionTool.serverPyPath) && [ \"$(cat \(ClaudeQuestionTool.versionPath) 2>/dev/null)\" = '\(ClaudeQuestionTool.version)' ]; then printf '\(ClaudeQuestionTool.version)'; else exit 1; fi"
-        let (verificationOutput, verificationSuccess) = await apiClient.runExec(
-            spriteName: spriteName,
-            command: verificationCommand,
-            timeout: 10
-        )
-        guard verificationSuccess,
-            verificationOutput.trimmingCharacters(in: .whitespacesAndNewlines) == ClaudeQuestionTool.version
-        else {
-            logger.error("Claude question tool verification failed: \(verificationOutput)")
-            return false
-        }
+            guard output.trimmingCharacters(in: .whitespacesAndNewlines) != ClaudeQuestionTool.version else {
+                return true  // already up to date
+            }
+            logger.info("Installing Claude question tool (version \(ClaudeQuestionTool.version))...")
+            do {
+                // Write files directly via the REST filesystem API to avoid shell command length limits
+                try await apiClient.uploadFile(
+                    spriteName: spriteName,
+                    remotePath: ClaudeQuestionTool.serverPyPath,
+                    data: Data(ClaudeQuestionTool.serverScript.utf8)
+                )
+            } catch {
+                logger.error("Claude question tool installation failed: \(error)")
+                if attempt < 3 { continue }
+                return false
+            }
+            // Make server.py executable and write version file via exec
+            // (the fs/write API corrupts very small payloads to null bytes)
+            let installCommand = "\(ClaudeQuestionTool.chmodCommand) && mkdir -p ~/.wisp/claude-question && echo -n '\(ClaudeQuestionTool.version)' > \(ClaudeQuestionTool.versionPath)"
+            let (installOutput, installSuccess) = await apiClient.runExec(
+                spriteName: spriteName,
+                command: installCommand,
+                timeout: 15
+            )
+            guard installSuccess else {
+                let trimmedOutput = installOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+                logger.error("Claude question tool install command failed: \(trimmedOutput)")
+                if attempt < 3 { continue }
+                return false
+            }
 
-        return true
+            let verificationCommand =
+                "if test -x \(ClaudeQuestionTool.serverPyPath) && [ \"$(cat \(ClaudeQuestionTool.versionPath) 2>/dev/null)\" = '\(ClaudeQuestionTool.version)' ]; then printf '\(ClaudeQuestionTool.version)'; else exit 1; fi"
+            let (verificationOutput, verificationSuccess) = await apiClient.runExec(
+                spriteName: spriteName,
+                command: verificationCommand,
+                timeout: 15
+            )
+            guard verificationSuccess,
+                verificationOutput.trimmingCharacters(in: .whitespacesAndNewlines) == ClaudeQuestionTool.version
+            else {
+                logger.error("Claude question tool verification failed: \(verificationOutput)")
+                if attempt < 3 { continue }
+                return false
+            }
+
+            return true
+        }
+        return false
     }
 }
