@@ -241,6 +241,9 @@ struct SpriteOverviewView: View {
             await viewModel.checkSpritesAuth(apiClient: apiClient)
             await viewModel.checkGitHubAuth(apiClient: apiClient)
         }
+        .task {
+            await viewModel.pollStatus(apiClient: apiClient)
+        }
         .onChange(of: workingDirectory) {
             saveWorkingDirectory()
         }
