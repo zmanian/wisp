@@ -122,7 +122,9 @@ final class SpritesAPIClient {
         // but Go's net/url (1.17+) silently drops query parameters containing literal
         // semicolons. Manually encode them so the server receives the full command.
         if let encoded = components.percentEncodedQuery {
-            components.percentEncodedQuery = encoded.replacingOccurrences(of: ";", with: "%3B")
+            components.percentEncodedQuery = encoded
+                .replacingOccurrences(of: ";", with: "%3B")
+                .replacingOccurrences(of: "+", with: "%2B")
         }
 
         return ExecSession(url: components.url!, token: spritesToken ?? "")
@@ -383,12 +385,13 @@ final class SpritesAPIClient {
     // MARK: - Exec Helpers
 
     /// Run a command on a sprite via exec WebSocket, collecting output.
-    /// Returns the accumulated stdout/stderr text and whether the command completed before timeout.
+    /// Returns the accumulated stdout/stderr text and whether the command exited successfully before timeout.
     func runExec(spriteName: String, command: String, env: [String: String] = [:], timeout: Int = 15) async -> (output: String, success: Bool) {
         let session = createExecSession(spriteName: spriteName, command: command, env: env)
         session.connect()
         var output = Data()
         var timedOut = false
+        var exitCode: Int?
 
         let timeoutTask = Task {
             try await Task.sleep(for: .seconds(timeout))
@@ -400,16 +403,19 @@ final class SpritesAPIClient {
             for try await event in session.events() {
                 if case .data(let chunk) = event {
                     output.append(chunk)
+                } else if case .exit(let code) = event {
+                    exitCode = code
                 }
             }
         } catch {
-            // Expected on timeout disconnect or command failure
+            // Expected on timeout disconnect
         }
 
         timeoutTask.cancel()
         session.disconnect()
         let text = String(data: output, encoding: .utf8) ?? ""
-        return (text, !timedOut)
+        let succeeded = !timedOut && (exitCode.map { $0 == 0 } ?? true)
+        return (text, succeeded)
     }
 
     // MARK: - Private
