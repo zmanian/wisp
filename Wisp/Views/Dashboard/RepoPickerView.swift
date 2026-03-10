@@ -8,7 +8,8 @@ struct RepoPickerView: View {
     @State private var repos: [GitHubRepo] = []
     @State private var userRepos: [GitHubRepo] = []
     @State private var searchText = ""
-    @State private var cloneURL = ""
+    @State private var pendingCloneURL: URL? = nil
+    @State private var showClipboardError = false
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var searchTask: Task<Void, Never>?
@@ -19,14 +20,10 @@ struct RepoPickerView: View {
     var body: some View {
         List {
             Section {
-                HStack {
-                    TextField("Paste a clone URL", text: $cloneURL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Button("Clone") {
-                        selectFromURL()
-                    }
-                    .disabled(parsedCloneURL == nil)
+                Button {
+                    pasteCloneURL()
+                } label: {
+                    Label("Paste Clone URL", systemImage: "doc.on.clipboard")
                 }
             } header: {
                 Text("Clone URL")
@@ -105,6 +102,22 @@ struct RepoPickerView: View {
                 }
             }
         }
+        .alert("Use this Clone URL?", isPresented: Binding(
+            get: { pendingCloneURL != nil },
+            set: { if !$0 { pendingCloneURL = nil } }
+        )) {
+            Button("Use URL") {
+                if let url = pendingCloneURL { selectFromURL(url: url) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(pendingCloneURL?.absoluteString ?? "")
+        }
+        .alert("Invalid Clone URL", isPresented: $showClipboardError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The clipboard doesn't contain a valid clone URL.")
+        }
         .task {
             if hasToken {
                 await loadUserRepos()
@@ -150,14 +163,20 @@ struct RepoPickerView: View {
         isLoading = false
     }
 
-    private var parsedCloneURL: URL? {
-        let trimmed = cloneURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let url = URL(string: trimmed), url.host != nil else { return nil }
-        return url
+    private func pasteCloneURL() {
+        guard let text = UIPasteboard.general.string else {
+            showClipboardError = true
+            return
+        }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let url = URL(string: trimmed), url.host != nil else {
+            showClipboardError = true
+            return
+        }
+        pendingCloneURL = url
     }
 
-    private func selectFromURL() {
-        guard let url = parsedCloneURL else { return }
+    private func selectFromURL(url: URL) {
         let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let stripped = path.hasSuffix(".git") ? String(path.dropLast(4)) : path
         let components = stripped.components(separatedBy: "/")
@@ -169,6 +188,7 @@ struct RepoPickerView: View {
             cloneURL: url.absoluteString,
             isPrivate: false
         )
+        pendingCloneURL = nil
         dismiss()
     }
 }
