@@ -258,7 +258,9 @@ final class SpritesAPIClient {
         // but Go's net/url (1.17+) silently drops query parameters containing literal
         // semicolons. Manually encode them so the server receives the full command.
         if let encoded = components.percentEncodedQuery {
-            components.percentEncodedQuery = encoded.replacingOccurrences(of: ";", with: "%3B")
+            components.percentEncodedQuery = encoded
+                .replacingOccurrences(of: ";", with: "%3B")
+                .replacingOccurrences(of: "+", with: "%2B")
         }
 
         return ExecSession(url: components.url!, token: spritesToken ?? "")

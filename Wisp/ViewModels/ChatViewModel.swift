@@ -62,13 +62,15 @@ final class ChatViewModel {
     private var usedResume = false
     var queuedPrompt: String?
     var queuedAttachments: [AttachedFile] = []
+    var stashedDraft: String?
     private var retriedAfterTimeout = false
     private var turnHasMutations = false
     private var pendingForkContext: String?
     private var apiClient: SpritesAPIClient?
+
     /// UUIDs of Claude NDJSON events already processed.
     /// Used by reconnect to skip already-handled events instead of clearing content.
-    private var processedEventUUIDs: Set<String> = []
+    var processedEventUUIDs: Set<String> = []
     private var hasPlayedFirstTextHaptic = false
 
     init(spriteName: String, chatId: UUID, currentServiceName: String?, workingDirectory: String) {
@@ -202,6 +204,19 @@ final class ChatViewModel {
         guard let chat = fetchChat(modelContext: modelContext) else { return }
         chat.draftInputText = inputText.isEmpty ? nil : inputText
         try? modelContext.save()
+    }
+
+    func stashDraft() {
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        stashedDraft = text
+        inputText = ""
+    }
+
+    private func restoreStash() {
+        guard let stash = stashedDraft else { return }
+        stashedDraft = nil
+        inputText = stash
     }
 
     func fetchRemoteSessions(apiClient: SpritesAPIClient, existingSessionIds: Set<String>) {
@@ -402,7 +417,9 @@ final class ChatViewModel {
         let persisted = messages.map { $0.toPersisted() }
         guard let chat = fetchChat(modelContext: modelContext) else { return }
         chat.saveMessages(persisted)
-        chat.saveStreamEventUUIDs(processedEventUUIDs)
+        if !processedEventUUIDs.isEmpty {
+            chat.saveStreamEventUUIDs(processedEventUUIDs)
+        }
         try? modelContext.save()
     }
 
@@ -474,12 +491,14 @@ final class ChatViewModel {
             queuedPrompt = text
             queuedAttachments = attachedFiles
             attachedFiles = []
+            restoreStash()
             return
         }
 
         // Build prompt with attached file paths prepended
         let prompt = buildPrompt(text: text, attachments: attachedFiles)
         attachedFiles = []
+        restoreStash()
 
         let isFirstMessage = messages.isEmpty
         let userMessage = ChatMessage(role: .user, content: [.text(prompt)])
@@ -535,6 +554,11 @@ final class ChatViewModel {
 
     func interrupt(apiClient: SpritesAPIClient? = nil, modelContext: ModelContext? = nil) {
         detach(modelContext: modelContext)
+
+        // Interrupted sessions are not cleanly resumable, so clear the session ID
+        // to avoid a spurious "Session expired" message on the next send
+        sessionId = nil
+        if let modelContext { saveSession(modelContext: modelContext) }
 
         // Delete the service to stop it
         if let apiClient {
@@ -1331,9 +1355,9 @@ final class ChatViewModel {
         let worktreeParent = "/home/sprite/.wisp/worktrees/\(repoName)"
         let worktreeDir = "\(worktreeParent)/\(uniqueBranchName)"
 
-        let command = "mkdir -p '\(worktreeParent)' && if git -C '\(currentWorkDir)' worktree add '\(worktreeDir)' -b '\(uniqueBranchName)' 2>/dev/null; then echo '\(worktreeDir)'; fi"
+        let command = "git -C '\(currentWorkDir)' pull 2>/dev/null || true; mkdir -p '\(worktreeParent)' && if git -C '\(currentWorkDir)' worktree add '\(worktreeDir)' -b '\(uniqueBranchName)' 2>/dev/null; then echo '\(worktreeDir)'; fi"
 
-        let (output, _) = await apiClient.runExec(spriteName: spriteName, command: command, timeout: 30)
+        let (output, _) = await apiClient.runExec(spriteName: spriteName, command: command, timeout: 60)
         // git worktree add may print "HEAD is now at..." to stdout before our echo,
         // so take only the last non-empty line which is always the echo'd path.
         let path = output

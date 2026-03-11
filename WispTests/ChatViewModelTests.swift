@@ -583,6 +583,52 @@ struct ChatViewModelTests {
         #expect(lines[2] == "{\"type\":\"plain\"}")
     }
 
+    // MARK: - UUID persistence
+
+    @Test func persistMessages_savesUUIDsToChat() throws {
+        let ctx = try makeModelContext()
+        let (vm, chat) = makeChatViewModel(modelContext: ctx)
+
+        vm.processedEventUUIDs = ["uuid-a", "uuid-b"]
+        vm.persistMessages(modelContext: ctx)
+
+        #expect(chat.loadStreamEventUUIDs() == ["uuid-a", "uuid-b"])
+    }
+
+    @Test func persistMessages_doesNotOverwriteWithEmptySet() throws {
+        let ctx = try makeModelContext()
+        let (vm, chat) = makeChatViewModel(modelContext: ctx)
+
+        // Save a valid UUID set
+        chat.saveStreamEventUUIDs(["uuid-prior"])
+
+        // persistMessages with empty processedEventUUIDs should not overwrite
+        vm.processedEventUUIDs = []
+        vm.persistMessages(modelContext: ctx)
+
+        #expect(chat.loadStreamEventUUIDs() == ["uuid-prior"])
+    }
+
+    @Test func loadSession_restoresProcessedEventUUIDs() throws {
+        let ctx = try makeModelContext()
+        let (vm, chat) = makeChatViewModel(modelContext: ctx)
+
+        chat.saveStreamEventUUIDs(["uuid-x", "uuid-y"])
+
+        vm.loadSession(apiClient: SpritesAPIClient(), modelContext: ctx)
+
+        #expect(vm.processedEventUUIDs == ["uuid-x", "uuid-y"])
+    }
+
+    @Test func loadSession_setsEmptyUUIDsWhenNoneStored() throws {
+        let ctx = try makeModelContext()
+        let (vm, _) = makeChatViewModel(modelContext: ctx)
+
+        vm.loadSession(apiClient: SpritesAPIClient(), modelContext: ctx)
+
+        #expect(vm.processedEventUUIDs.isEmpty)
+    }
+
     // MARK: - Streaming state (single source of truth)
 
     @Test func currentAssistantMessageId_tracksCurrentMessage() throws {
@@ -600,5 +646,61 @@ struct ChatViewModelTests {
         vm.setCurrentAssistantMessage(nil)
 
         #expect(vm.currentAssistantMessageId == nil)
+    }
+
+    // MARK: - stashDraft
+
+    @Test func stashDraft_movesInputTextToStash() throws {
+        let ctx = try makeModelContext()
+        let (vm, _) = makeChatViewModel(modelContext: ctx)
+
+        vm.inputText = "my long prompt"
+        vm.stashDraft()
+
+        #expect(vm.stashedDraft == "my long prompt")
+        #expect(vm.inputText == "")
+    }
+
+    @Test func stashDraft_doesNothingWhenEmpty() throws {
+        let ctx = try makeModelContext()
+        let (vm, _) = makeChatViewModel(modelContext: ctx)
+
+        vm.inputText = "   "
+        vm.stashDraft()
+
+        #expect(vm.stashedDraft == nil)
+        #expect(vm.inputText == "   ")
+    }
+
+    @Test func stashDraft_overwritesPreviousStash() throws {
+        let ctx = try makeModelContext()
+        let (vm, _) = makeChatViewModel(modelContext: ctx)
+
+        vm.inputText = "first draft"
+        vm.stashDraft()
+        vm.inputText = "second draft"
+        vm.stashDraft()
+
+        #expect(vm.stashedDraft == "second draft")
+        #expect(vm.inputText == "")
+    }
+
+    @Test func stashDraft_leavesInputReadyForNextMessage() throws {
+        let ctx = try makeModelContext()
+        let (vm, _) = makeChatViewModel(modelContext: ctx)
+
+        vm.inputText = "long prompt I want to come back to"
+        vm.stashDraft()
+
+        // After stashing, the field is clear and stash holds the draft
+        #expect(vm.inputText == "")
+        #expect(vm.stashedDraft == "long prompt I want to come back to")
+
+        // Manually simulate the restore (as sendMessage would do)
+        vm.inputText = vm.stashedDraft!
+        vm.stashedDraft = nil
+
+        #expect(vm.inputText == "long prompt I want to come back to")
+        #expect(vm.stashedDraft == nil)
     }
 }

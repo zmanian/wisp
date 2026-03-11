@@ -14,7 +14,10 @@ struct ChatInputBar: View {
     var attachedFiles: [AttachedFile] = []
     var onRemoveAttachment: ((AttachedFile) -> Void)? = nil
     var lastUploadedFileName: String? = nil
+    var onStash: (() -> Void)? = nil
     var isFocused: FocusState<Bool>.Binding
+
+    @State private var showStopConfirmation = false
 
     private var isEmpty: Bool {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachedFiles.isEmpty
@@ -66,12 +69,20 @@ struct ChatInputBar: View {
                     .disabled(hasQueuedMessage)
 
                 if isStreaming {
-                    Button(action: onInterrupt) {
+                    Button {
+                        showStopConfirmation = true
+                    } label: {
                         Image(systemName: "stop.circle.fill")
                             .font(.title2)
                     }
                     .tint(.red)
                     .buttonStyle(.glass)
+                    .confirmationDialog("Stop Claude?", isPresented: $showStopConfirmation) {
+                        Button("Stop", role: .destructive, action: onInterrupt)
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("This will interrupt the current response.")
+                    }
                 }
 
                 Button {
@@ -92,6 +103,13 @@ struct ChatInputBar: View {
                             }
                         }
                 )
+                .contextMenu {
+                    if let onStash, !isEmpty {
+                        Button("Stash Draft", systemImage: "tray.and.arrow.down") {
+                            onStash()
+                        }
+                    }
+                }
             }
         }
         .animation(.easeInOut(duration: 0.2), value: attachedFiles.count)
@@ -108,4 +126,28 @@ struct ChatInputBar: View {
         ProcessInfo.processInfo.isiOSAppOnMac
         #endif
     }
+}
+
+#Preview("Idle") {
+    @Previewable @State var text = ""
+    @Previewable @FocusState var isFocused: Bool
+    ChatInputBar(
+        text: $text,
+        isStreaming: false,
+        onSend: {},
+        onInterrupt: {},
+        isFocused: $isFocused
+    )
+}
+
+#Preview("Streaming") {
+    @Previewable @State var text = ""
+    @Previewable @FocusState var isFocused: Bool
+    ChatInputBar(
+        text: $text,
+        isStreaming: true,
+        onSend: {},
+        onInterrupt: {},
+        isFocused: $isFocused
+    )
 }
