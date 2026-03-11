@@ -999,6 +999,7 @@ final class ChatViewModel {
         // Replay loop — each iteration fetches full log history.
         // processServiceStream skips events whose UUID is already in
         // processedEventUUIDs, so content is never cleared mid-stream.
+        var retriedAfterServiceStopped = false
         while !Task.isCancelled {
             receivedSystemEvent = false
             receivedResultEvent = false
@@ -1030,15 +1031,27 @@ final class ChatViewModel {
             // If we got a result event, Claude is done
             if receivedResultEvent { break }
 
-            // Check if service is still running before retrying
-            if let serviceInfo = try? await apiClient.getServiceStatus(spriteName: spriteName, serviceName: serviceName),
-               serviceInfo.state.status == "running" {
+            // Check if service is still running
+            let isRunning = (try? await apiClient.getServiceStatus(spriteName: spriteName, serviceName: serviceName))?.state.status == "running"
+
+            if isRunning {
                 logger.info("[Chat] Service still running, will re-poll after delay")
                 try? await Task.sleep(for: .seconds(2))
                 continue
             }
 
-            // Service not running or status check failed — we're done
+            // Service has stopped (or status check failed / service gone). The GET stream
+            // may have been killed by iOS just as Claude finished writing its final events —
+            // a race between the connection dying and the result arriving. Allow one extra
+            // retry so we catch any events that landed in the log after the stream closed.
+            if !retriedAfterServiceStopped {
+                retriedAfterServiceStopped = true
+                logger.info("[Chat] Service stopped without result event — retrying once for final events")
+                try? await Task.sleep(for: .seconds(1))
+                continue
+            }
+
+            // Already retried after stop — give up
             break
         }
 
