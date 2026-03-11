@@ -24,7 +24,7 @@ struct ChatSwitcherSheet: View {
                         dismiss()
                     }
                     .contextMenu {
-                        if let sessionId = chat.claudeSessionId {
+                        if let sessionId = chat.claudeSessionId, !chat.isClosed {
                             Button {
                                 UIPasteboard.general.string = "cd \(chat.workingDirectory) && claude --resume \(sessionId)"
                             } label: {
@@ -52,7 +52,7 @@ struct ChatSwitcherSheet: View {
                         }
                     }
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        if let sessionId = chat.claudeSessionId {
+                        if let sessionId = chat.claudeSessionId, !chat.isClosed {
                             Button {
                                 UIPasteboard.general.string = "cd \(chat.workingDirectory) && claude --resume \(sessionId)"
                             } label: {
