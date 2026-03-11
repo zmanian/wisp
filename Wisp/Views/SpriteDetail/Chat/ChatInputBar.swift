@@ -14,6 +14,7 @@ struct ChatInputBar: View {
     var onRemoveAttachment: ((AttachedFile) -> Void)? = nil
     var lastUploadedFileName: String? = nil
     var onStash: (() -> Void)? = nil
+    var onSideChat: (() -> Void)? = nil
     var isFocused: FocusState<Bool>.Binding
 
     @State private var showStopConfirmation = false
@@ -55,6 +56,15 @@ struct ChatInputBar: View {
                         onPickPhoto: onPickPhoto,
                         onPickFile: onPickFile
                     )
+                }
+
+                if let onSideChat {
+                    Button(action: onSideChat) {
+                        Image(systemName: "bubble.and.pencil")
+                            .font(.title3)
+                    }
+                    .buttonStyle(.glass)
+                    .help("Side chat")
                 }
 
                 TextField("Message...", text: $text, axis: .vertical)
@@ -127,6 +137,19 @@ struct ChatInputBar: View {
         isStreaming: false,
         onSend: {},
         onInterrupt: {},
+        isFocused: $isFocused
+    )
+}
+
+#Preview("With Side Chat") {
+    @Previewable @State var text = ""
+    @Previewable @FocusState var isFocused: Bool
+    ChatInputBar(
+        text: $text,
+        isStreaming: false,
+        onSend: {},
+        onInterrupt: {},
+        onSideChat: {},
         isFocused: $isFocused
     )
 }
