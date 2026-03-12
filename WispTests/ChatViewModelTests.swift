@@ -912,10 +912,10 @@ struct ChatViewModelTests {
         vm.messages.append(assistantMsg)
         vm.setCurrentAssistantMessage(assistantMsg)
 
-        let systemLine = #"{"type":"system","session_id":"s1","model":"claude-sonnet-4-20250514"}"# + "\n"
-        let textLine1 = #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hello "}]}}"# + "\n"
-        let textLine2 = #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"world"}]}}"# + "\n"
-        let resultLine = #"{"type":"result","session_id":"s1","subtype":"success"}"# + "\n"
+        let systemLine = #"{"type":"system","session_id":"s1","model":"claude-sonnet-4-20250514","uuid":"uuid-sys"}"# + "\n"
+        let textLine1 = #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hello "}]},"uuid":"uuid-text1"}"# + "\n"
+        let textLine2 = #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"world"}]},"uuid":"uuid-text2"}"# + "\n"
+        let resultLine = #"{"type":"result","session_id":"s1","subtype":"success","uuid":"uuid-result"}"# + "\n"
 
         // Stream 1: partial text, no result (triggers one-retry path)
         let stream1 = AsyncThrowingStream<ServiceLogEvent, Error> { continuation in
