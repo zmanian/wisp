@@ -1536,7 +1536,14 @@ final class ChatViewModel {
             replayToolUseBuffer = [:]
             return
         }
-        message.content.append(contentsOf: replayContentBuffer)
+        for item in replayContentBuffer {
+            if case .text(let newText) = item,
+               case .text(let existing) = message.content.last {
+                message.content[message.content.count - 1] = .text(existing + newText)
+            } else {
+                message.content.append(item)
+            }
+        }
         toolUseIndex.merge(replayToolUseBuffer) { _, new in new }
         replayContentBuffer = []
         replayToolUseBuffer = [:]

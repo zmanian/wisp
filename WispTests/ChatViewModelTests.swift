@@ -902,6 +902,48 @@ struct ChatViewModelTests {
         }
     }
 
+    @Test func runReconnectLoop_mergesTextAcrossRetryIterations() async throws {
+        // Text from iteration 1 and text from iteration 2 (the "one retry after service
+        // stopped" path) must merge into a single .text entry, not produce two bubbles.
+        let ctx = try makeModelContext()
+        let (vm, _) = makeChatViewModel(modelContext: ctx)
+
+        let assistantMsg = ChatMessage(role: .assistant)
+        vm.messages.append(assistantMsg)
+        vm.setCurrentAssistantMessage(assistantMsg)
+
+        let systemLine = #"{"type":"system","session_id":"s1","model":"claude-sonnet-4-20250514"}"# + "\n"
+        let textLine1 = #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hello "}]}}"# + "\n"
+        let textLine2 = #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"world"}]}}"# + "\n"
+        let resultLine = #"{"type":"result","session_id":"s1","subtype":"success"}"# + "\n"
+
+        // Stream 1: partial text, no result (triggers one-retry path)
+        let stream1 = AsyncThrowingStream<ServiceLogEvent, Error> { continuation in
+            continuation.yield(ServiceLogEvent(type: .stdout, data: systemLine, exitCode: nil, timestamp: nil, logFiles: nil))
+            continuation.yield(ServiceLogEvent(type: .stdout, data: textLine1, exitCode: nil, timestamp: nil, logFiles: nil))
+            continuation.finish()
+        }
+        // Stream 2: same text (now skipped) + more text + result
+        let stream2 = AsyncThrowingStream<ServiceLogEvent, Error> { continuation in
+            continuation.yield(ServiceLogEvent(type: .stdout, data: systemLine, exitCode: nil, timestamp: nil, logFiles: nil))
+            continuation.yield(ServiceLogEvent(type: .stdout, data: textLine1, exitCode: nil, timestamp: nil, logFiles: nil))
+            continuation.yield(ServiceLogEvent(type: .stdout, data: textLine2, exitCode: nil, timestamp: nil, logFiles: nil))
+            continuation.yield(ServiceLogEvent(type: .stdout, data: resultLine, exitCode: nil, timestamp: nil, logFiles: nil))
+            continuation.finish()
+        }
+
+        let mock = MockServiceLogsProvider(streams: [stream1, stream2], statuses: ["stopped"])
+        await vm.runReconnectLoop(apiClient: mock, modelContext: ctx)
+
+        // Should be one merged text entry, not two separate bubbles
+        #expect(assistantMsg.content.count == 1)
+        if case .text(let text) = assistantMsg.content.first {
+            #expect(text == "Hello world")
+        } else {
+            Issue.record("Expected single merged text entry after two replay iterations")
+        }
+    }
+
     // MARK: - lastSessionComplete
 
     @Test func runReconnectLoop_setsLastSessionCompleteWhenResultReceived() async throws {
