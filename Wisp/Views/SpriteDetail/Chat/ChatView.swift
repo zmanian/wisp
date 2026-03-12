@@ -12,6 +12,7 @@ struct ChatView: View {
     var onFork: ((String, UUID) -> Void)? = nil
     @FocusState private var isInputFocused: Bool
     @State private var contentOpacity: Double = 0
+    @State private var isAtBottom: Bool = true
 
     // Attachment state
     @State private var showFileBrowser = false
@@ -56,6 +57,9 @@ struct ChatView: View {
                         }
                     }
                     Color.clear.frame(height: 1).id("bottom")
+                        .onScrollVisibilityChange(threshold: 0.5) { visible in
+                            isAtBottom = visible
+                        }
                 }
                 .opacity(contentOpacity)
                 .padding()
@@ -66,17 +70,23 @@ struct ChatView: View {
                 proxy.scrollTo("bottom")
             }
             .onChange(of: viewModel.messages.last?.content.count) {
-                if viewModel.isStreaming {
+                if viewModel.isStreaming && isAtBottom {
                     proxy.scrollTo("bottom")
                 }
             }
             .onChange(of: viewModel.activeToolLabel) {
-                if viewModel.isStreaming {
+                if viewModel.isStreaming && isAtBottom {
                     proxy.scrollTo("bottom")
                 }
             }
             .onChange(of: viewModel.queuedPrompt) {
                 proxy.scrollTo("bottom")
+            }
+            .onChange(of: viewModel.isStreaming) { _, streaming in
+                if streaming {
+                    isAtBottom = true
+                    proxy.scrollTo("bottom")
+                }
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
