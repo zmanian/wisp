@@ -78,6 +78,13 @@ final class ChatViewModel {
     var processedEventUUIDs: Set<String> = []
     private var hasPlayedFirstTextHaptic = false
 
+    /// When true, handleEvent buffers content changes instead of mutating the
+    /// @Observable ChatMessage directly. Flushed in one shot after replay ends,
+    /// reducing the N per-event SwiftUI re-renders to a single update.
+    private var isReplaying = false
+    private var replayContentBuffer: [ChatContent] = []
+    private var replayToolUseBuffer: [String: (messageIndex: Int, toolName: String)] = [:]
+
     init(spriteName: String, chatId: UUID, currentServiceName: String?, workingDirectory: String) {
         self.spriteName = spriteName
         self.chatId = chatId
@@ -963,6 +970,11 @@ final class ChatViewModel {
         apiClient: some ServiceLogsProvider,
         modelContext: ModelContext
     ) async {
+        isReplaying = true
+        defer {
+            applyReplayBuffer()
+            isReplaying = false
+        }
         status = .reconnecting
         let priorUUIDs = processedEventUUIDs.count
         logger.info("[Chat] Reconnecting to service logs (\(priorUUIDs) prior UUIDs)")
@@ -1012,6 +1024,9 @@ final class ChatViewModel {
                 stream: stream,
                 modelContext: modelContext
             )
+
+            // Flush buffered content to the observable message in one shot
+            applyReplayBuffer()
 
             let currentUUIDs = processedEventUUIDs.count
             logger.info("[Chat] Reconnect stream ended: result=\(streamResult), content=\(assistantMessage.content.count), uuids=\(currentUUIDs)")
@@ -1090,15 +1105,23 @@ final class ChatViewModel {
             for block in assistantEvent.message.content {
                 switch block {
                 case .text(let text):
-                    if !hasPlayedFirstTextHaptic {
+                    if !isReplaying && !hasPlayedFirstTextHaptic {
                         hasPlayedFirstTextHaptic = true
                         fireHaptic(.medium)
                     }
                     // Merge consecutive text blocks
-                    if case .text(let existing) = message.content.last {
-                        message.content[message.content.count - 1] = .text(existing + text)
+                    if isReplaying {
+                        if case .text(let existing) = replayContentBuffer.last {
+                            replayContentBuffer[replayContentBuffer.count - 1] = .text(existing + text)
+                        } else {
+                            replayContentBuffer.append(.text(text))
+                        }
                     } else {
-                        message.content.append(.text(text))
+                        if case .text(let existing) = message.content.last {
+                            message.content[message.content.count - 1] = .text(existing + text)
+                        } else {
+                            message.content.append(.text(text))
+                        }
                     }
                 case .toolUse(let toolUse):
                     let card = ToolUseCard(
@@ -1106,12 +1129,20 @@ final class ChatViewModel {
                         toolName: toolUse.name,
                         input: toolUse.input
                     )
-                    message.content.append(.toolUse(card))
                     logger.info("Tool use: \(toolUse.name, privacy: .public) id=\(toolUse.id, privacy: .public)")
-                    toolUseIndex[toolUse.id] = (
-                        messageIndex: messages.count - 1,
-                        toolName: toolUse.name
-                    )
+                    if isReplaying {
+                        replayContentBuffer.append(.toolUse(card))
+                        replayToolUseBuffer[toolUse.id] = (
+                            messageIndex: messages.count - 1,
+                            toolName: toolUse.name
+                        )
+                    } else {
+                        message.content.append(.toolUse(card))
+                        toolUseIndex[toolUse.id] = (
+                            messageIndex: messages.count - 1,
+                            toolName: toolUse.name
+                        )
+                    }
                     if ["Write", "Edit"].contains(toolUse.name) {
                         turnHasMutations = true
                     }
@@ -1124,22 +1155,34 @@ final class ChatViewModel {
             guard let message = currentAssistantMessage else { return }
 
             for result in toolResultEvent.message.content {
-                let toolName = toolUseIndex[result.toolUseId]?.toolName ?? "Unknown"
+                let toolName = replayToolUseBuffer[result.toolUseId]?.toolName
+                    ?? toolUseIndex[result.toolUseId]?.toolName
+                    ?? "Unknown"
                 let resultCard = ToolResultCard(
                     toolUseId: result.toolUseId,
                     toolName: toolName,
                     content: result.content ?? .null
                 )
-                message.content.append(.toolResult(resultCard))
-
-                // Link result back to matching tool use card
-                for item in message.content {
-                    if case .toolUse(let toolCard) = item, toolCard.toolUseId == result.toolUseId {
-                        toolCard.result = resultCard
-                        break
+                if isReplaying {
+                    replayContentBuffer.append(.toolResult(resultCard))
+                    // Link result to matching tool use card in the buffer
+                    for item in replayContentBuffer {
+                        if case .toolUse(let toolCard) = item, toolCard.toolUseId == result.toolUseId {
+                            toolCard.result = resultCard
+                            break
+                        }
                     }
+                } else {
+                    message.content.append(.toolResult(resultCard))
+                    // Link result back to matching tool use card
+                    for item in message.content {
+                        if case .toolUse(let toolCard) = item, toolCard.toolUseId == result.toolUseId {
+                            toolCard.result = resultCard
+                            break
+                        }
+                    }
+                    fireHaptic(.light)
                 }
-                fireHaptic(.light)
             }
 
         case .result(let resultEvent):
@@ -1151,7 +1194,7 @@ final class ChatViewModel {
             saveSession(modelContext: modelContext)
 
             let autoCheckpointEnabled = UserDefaults.standard.bool(forKey: "autoCheckpoint")
-            if turnHasMutations, autoCheckpointEnabled, let apiClient {
+            if !isReplaying, turnHasMutations, autoCheckpointEnabled, let apiClient {
                 let assistantMsg = currentAssistantMessage
                 let sprite = spriteName
                 Task { [weak assistantMsg] in
@@ -1458,6 +1501,20 @@ final class ChatViewModel {
         timeoutTask.cancel()
         session.disconnect()
         return !timedOut
+    }
+
+    /// Flush the replay content buffer into the current assistant message in one shot,
+    /// replacing N per-event observable mutations with a single array assignment.
+    private func applyReplayBuffer() {
+        guard !replayContentBuffer.isEmpty, let message = currentAssistantMessage else {
+            replayContentBuffer = []
+            replayToolUseBuffer = [:]
+            return
+        }
+        message.content.append(contentsOf: replayContentBuffer)
+        toolUseIndex.merge(replayToolUseBuffer) { _, new in new }
+        replayContentBuffer = []
+        replayToolUseBuffer = [:]
     }
 
     private func fireHaptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
