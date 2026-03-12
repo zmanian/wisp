@@ -224,9 +224,16 @@ final class ChatViewModel {
         inputText = stash
     }
 
+    /// True when this chat uses (or will use) a git worktree.
+    /// Covers both established worktrees and fresh chats where the worktree
+    /// hasn't been created yet but the setting is enabled.
+    var usesWorktree: Bool {
+        worktreePath != nil || UserDefaults.standard.bool(forKey: "worktreePerChat")
+    }
+
     func fetchRemoteSessions(apiClient: SpritesAPIClient, existingSessionIds: Set<String>) {
         // Worktrees are always fresh — no sessions to resume
-        guard worktreePath == nil else { return }
+        guard !usesWorktree else { return }
         guard !isLoadingRemoteSessions else { return }
         isLoadingRemoteSessions = true
 

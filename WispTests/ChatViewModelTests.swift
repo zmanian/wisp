@@ -679,13 +679,29 @@ struct ChatViewModelTests {
     // MARK: - fetchRemoteSessions
 
     @Test func fetchRemoteSessions_isNoOpWhenWorktreePathIsSet() throws {
-        // Worktrees are always fresh — no sessions to resume, so fetchRemoteSessions
-        // should return immediately without starting any network work.
+        // Established worktrees (worktreePath already set) are always fresh — no sessions to resume.
         let ctx = try makeModelContext()
         let (vm, chat) = makeChatViewModel(modelContext: ctx)
 
         chat.worktreePath = "/tmp/worktrees/my-branch"
         vm.loadSession(apiClient: SpritesAPIClient(), modelContext: ctx)
+
+        vm.fetchRemoteSessions(apiClient: SpritesAPIClient(), existingSessionIds: [])
+
+        #expect(vm.remoteSessions.isEmpty)
+        #expect(vm.isLoadingRemoteSessions == false)
+    }
+
+    @Test func fetchRemoteSessions_isNoOpWhenWorktreeSettingEnabled() throws {
+        // Fresh chats with worktreePerChat enabled haven't created a worktree yet
+        // (worktreePath is nil), but sessions to resume are still irrelevant.
+        let ctx = try makeModelContext()
+        let (vm, _) = makeChatViewModel(modelContext: ctx)
+        // worktreePath is nil (new chat, worktree not yet created)
+        #expect(vm.worktreePath == nil)
+
+        UserDefaults.standard.set(true, forKey: "worktreePerChat")
+        defer { UserDefaults.standard.removeObject(forKey: "worktreePerChat") }
 
         vm.fetchRemoteSessions(apiClient: SpritesAPIClient(), existingSessionIds: [])
 
