@@ -676,6 +676,23 @@ struct ChatViewModelTests {
         #expect(vm.processedEventUUIDs.isEmpty)
     }
 
+    // MARK: - fetchRemoteSessions
+
+    @Test func fetchRemoteSessions_isNoOpWhenWorktreePathIsSet() throws {
+        // Worktrees are always fresh — no sessions to resume, so fetchRemoteSessions
+        // should return immediately without starting any network work.
+        let ctx = try makeModelContext()
+        let (vm, chat) = makeChatViewModel(modelContext: ctx)
+
+        chat.worktreePath = "/tmp/worktrees/my-branch"
+        vm.loadSession(apiClient: SpritesAPIClient(), modelContext: ctx)
+
+        vm.fetchRemoteSessions(apiClient: SpritesAPIClient(), existingSessionIds: [])
+
+        #expect(vm.remoteSessions.isEmpty)
+        #expect(vm.isLoadingRemoteSessions == false)
+    }
+
     // MARK: - ChatStatus computed properties
 
     @Test func chatStatus_isConnecting_onlyForConnecting() {
