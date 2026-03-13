@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct ChatInputBar: View {
     @Binding var text: String
@@ -11,7 +10,6 @@ struct ChatInputBar: View {
     var onPickPhoto: (() -> Void)? = nil
     var onPickFile: (() -> Void)? = nil
     var onPasteFromClipboard: (() -> Void)? = nil
-    var onPasteItems: (([NSItemProvider]) -> Void)? = nil
     var isUploading: Bool = false
     var attachedFiles: [AttachedFile] = []
     var onRemoveAttachment: ((AttachedFile) -> Void)? = nil
@@ -20,6 +18,7 @@ struct ChatInputBar: View {
     var isFocused: FocusState<Bool>.Binding
 
     @State private var showStopConfirmation = false
+    @State private var textInputHeight: CGFloat = 36
 
     private var isEmpty: Bool {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachedFiles.isEmpty
@@ -61,16 +60,18 @@ struct ChatInputBar: View {
                     )
                 }
 
-                TextField("Message...", text: $text, axis: .vertical)
-                    .focused(isFocused)
-                    .lineLimit(1...5)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .frame(minHeight: 36)
-                    .glassEffect(in: .rect(cornerRadius: 20))
-                    .disabled(hasQueuedMessage)
-                    .modifier(PasteItemsModifier(onPasteItems: onPasteItems))
+                PasteInterceptingTextInput(
+                    text: $text,
+                    isFocused: isFocused,
+                    isDisabled: hasQueuedMessage,
+                    placeholder: "Message...",
+                    onPasteNonText: onPasteFromClipboard,
+                    dynamicHeight: $textInputHeight
+                )
+                .frame(height: max(textInputHeight, 36))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .glassEffect(in: .rect(cornerRadius: 20))
 
                 if isStreaming {
                     Button {
@@ -124,19 +125,6 @@ struct ChatInputBar: View {
     }
 }
 
-private struct PasteItemsModifier: ViewModifier {
-    var onPasteItems: (([NSItemProvider]) -> Void)?
-
-    func body(content: Content) -> some View {
-        #if targetEnvironment(macCatalyst)
-        content.onPaste(of: [.image, .fileURL]) { providers in
-            onPasteItems?(providers)
-        }
-        #else
-        content
-        #endif
-    }
-}
 
 #Preview("Idle") {
     @Previewable @State var text = ""
