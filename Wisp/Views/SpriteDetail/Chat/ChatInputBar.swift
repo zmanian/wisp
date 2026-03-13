@@ -70,9 +70,7 @@ struct ChatInputBar: View {
                     .frame(minHeight: 36)
                     .glassEffect(in: .rect(cornerRadius: 20))
                     .disabled(hasQueuedMessage)
-                    .onPaste(of: [.image, .fileURL]) { providers in
-                        onPasteItems?(providers)
-                    }
+                    .modifier(PasteItemsModifier(onPasteItems: onPasteItems))
 
                 if isStreaming {
                     Button {
@@ -122,6 +120,20 @@ struct ChatInputBar: View {
         true
         #else
         ProcessInfo.processInfo.isiOSAppOnMac
+        #endif
+    }
+}
+
+private struct PasteItemsModifier: ViewModifier {
+    var onPasteItems: (([NSItemProvider]) -> Void)?
+
+    func body(content: Content) -> some View {
+        #if targetEnvironment(macCatalyst)
+        content.onPaste(of: [.image, .fileURL]) { providers in
+            onPasteItems?(providers)
+        }
+        #else
+        content
         #endif
     }
 }
