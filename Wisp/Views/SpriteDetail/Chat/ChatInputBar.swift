@@ -125,7 +125,6 @@ struct ChatInputBar: View {
     }
 }
 
-
 #Preview("Idle") {
     @Previewable @State var text = ""
     @Previewable @FocusState var isFocused: Bool

@@ -38,20 +38,34 @@ final class PasteTextView: UITextView {
         placeholderLabel.isHidden = !text.isEmpty
     }
 
+    private func pasteboardHasNonTextContent() -> Bool {
+        let pb = UIPasteboard.general
+        if pb.hasImages { return true }
+        // Check item providers for any non-text data (e.g. files from Files app are
+        // stored as raw data under their content UTI, not as public.file-url)
+        for provider in pb.itemProviders {
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) { return true }
+            if provider.registeredTypeIdentifiers.contains(where: { id in
+                guard let type = UTType(id) else { return false }
+                return type.conforms(to: .data) && !type.conforms(to: .text)
+            }) { return true }
+        }
+        return false
+    }
+
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
         if action == #selector(paste(_:)) {
-            let pb = UIPasteboard.general
-            if pb.hasImages || pb.types.contains(UTType.fileURL.identifier) {
-                return true
-            }
+            // Always show Paste — canPerformAction is called without a user gesture so there's
+            // no privacy-safe way to detect arbitrary file types on the pasteboard. The paste(_:)
+            // override handles routing to onPasteNonText or super as appropriate.
+            return true
         }
         return super.canPerformAction(action, withSender: sender)
     }
 
     override func paste(_ sender: Any?) {
-        let pb = UIPasteboard.general
-        let hasNonText = pb.hasImages || pb.types.contains(UTType.fileURL.identifier)
-        let hasPlainText = pb.hasStrings
+        let hasNonText = pasteboardHasNonTextContent()
+        let hasPlainText = UIPasteboard.general.hasStrings
 
         if hasNonText && !hasPlainText {
             onPasteNonText?()
@@ -60,10 +74,6 @@ final class PasteTextView: UITextView {
         super.paste(sender)
     }
 
-    override var intrinsicContentSize: CGSize {
-        let size = super.intrinsicContentSize
-        return size
-    }
 }
 
 // MARK: - UIViewRepresentable
@@ -80,6 +90,7 @@ struct PasteInterceptingTextInput: UIViewRepresentable {
         let textView = PasteTextView()
         textView.backgroundColor = .clear
         textView.isScrollEnabled = false
+        textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         textView.font = UIFont.preferredFont(forTextStyle: .body)
         textView.textContainerInset = .zero
         textView.textContainer.lineFragmentPadding = 0
@@ -145,4 +156,22 @@ struct PasteInterceptingTextInput: UIViewRepresentable {
             parent.isFocused.wrappedValue = false
         }
     }
+}
+
+#Preview {
+    @Previewable @State var text = ""
+    @Previewable @State var height: CGFloat = 36
+    @Previewable @FocusState var focused: Bool
+    PasteInterceptingTextInput(
+        text: $text,
+        isFocused: $focused,
+        isDisabled: false,
+        placeholder: "Message...",
+        dynamicHeight: $height
+    )
+    .frame(height: max(height, 36))
+    .padding(.horizontal, 16)
+    .padding(.vertical, 8)
+    .glassEffect(in: .rect(cornerRadius: 20))
+    .padding()
 }
