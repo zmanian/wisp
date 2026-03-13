@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ChatInputBar: View {
     @Binding var text: String
@@ -9,6 +10,7 @@ struct ChatInputBar: View {
     var onBrowseSpriteFiles: (() -> Void)? = nil
     var onPickPhoto: (() -> Void)? = nil
     var onPickFile: (() -> Void)? = nil
+    var onPasteFromClipboard: (() -> Void)? = nil
     var isUploading: Bool = false
     var attachedFiles: [AttachedFile] = []
     var onRemoveAttachment: ((AttachedFile) -> Void)? = nil
@@ -17,6 +19,7 @@ struct ChatInputBar: View {
     var isFocused: FocusState<Bool>.Binding
 
     @State private var showStopConfirmation = false
+    @State private var textInputHeight: CGFloat = 36
 
     private var isEmpty: Bool {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachedFiles.isEmpty
@@ -57,15 +60,18 @@ struct ChatInputBar: View {
                     )
                 }
 
-                TextField("Message...", text: $text, axis: .vertical)
-                    .focused(isFocused)
-                    .lineLimit(1...5)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .frame(minHeight: 36)
-                    .glassEffect(in: .rect(cornerRadius: 20))
-                    .disabled(hasQueuedMessage)
+                PasteInterceptingTextInput(
+                    text: $text,
+                    isFocused: isFocused,
+                    isDisabled: hasQueuedMessage,
+                    placeholder: "Message...",
+                    onPasteNonText: onPasteFromClipboard,
+                    dynamicHeight: $textInputHeight
+                )
+                .frame(height: max(textInputHeight, 36))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .glassEffect(in: .rect(cornerRadius: 20))
 
                 if isStreaming {
                     Button {
@@ -84,23 +90,23 @@ struct ChatInputBar: View {
                     }
                 }
 
-                Button {
-                    isFocused.wrappedValue = false
-                    onSend()
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                }
-                .tint(isEmpty || hasQueuedMessage ? .gray : Color("AccentColor"))
-                .disabled(isEmpty || hasQueuedMessage)
-                .buttonStyle(.glass)
-                .contextMenu {
+                Menu {
                     if let onStash, !isEmpty {
                         Button("Stash Draft", systemImage: "tray.and.arrow.down") {
                             onStash()
                         }
                     }
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title2)
+                } primaryAction: {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    isFocused.wrappedValue = false
+                    onSend()
                 }
+                .tint(isEmpty || hasQueuedMessage ? .gray : Color("AccentColor"))
+                .disabled(isEmpty || hasQueuedMessage)
+                .buttonStyle(.glass)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: attachedFiles.count)

@@ -6,7 +6,6 @@ struct ChatAttachmentButton: View {
     let onBrowseSpriteFiles: () -> Void
     let onPickPhoto: () -> Void
     let onPickFile: () -> Void
-
     var body: some View {
         if isUploading {
             ProgressView()
@@ -30,6 +29,7 @@ struct ChatAttachmentButton: View {
                 } label: {
                     Label("Choose File", systemImage: "doc")
                 }
+
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.title2)
