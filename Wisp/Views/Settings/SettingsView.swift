@@ -245,8 +245,6 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(copiedCommitFlash ? .green : .secondary)
                     .fontDesign(.monospaced)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
                     .contentTransition(.numericText())
             }
             .onTapGesture {
