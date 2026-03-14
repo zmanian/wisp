@@ -92,11 +92,12 @@ final class ChatViewModel {
     /// being batched until the connection drops.
     private var isReplayingLiveService = false
 
-    init(spriteName: String, chatId: UUID, currentServiceName: String?, workingDirectory: String) {
+    init(spriteName: String, chatId: UUID, currentServiceName: String?, workingDirectory: String, worktreePath: String? = nil) {
         self.spriteName = spriteName
         self.chatId = chatId
         self.serviceName = currentServiceName ?? "wisp-claude-\(UUID().uuidString.prefix(8).lowercased())"
         self.workingDirectory = workingDirectory
+        self.worktreePath = worktreePath
     }
 
     // MARK: - Attachment State
@@ -544,7 +545,12 @@ final class ChatViewModel {
             return
         }
 
-        // Build prompt with attached file paths prepended
+        // Capture attachments before clearing so the stream task can copy them to the
+        // worktree if one gets created on the first message.
+        let capturedText = text
+        let capturedAttachments = attachedFiles
+
+        // Build prompt with attached file paths prepended (used for the display message)
         let prompt = buildPrompt(text: text, attachments: attachedFiles)
         attachedFiles = []
         restoreStash()
@@ -562,13 +568,24 @@ final class ChatViewModel {
         let needsWorktreeSetup = isFirstMessage && worktreePath == nil && worktreeEnabled
         status = .connecting
         streamTask = Task {
+            var claudePrompt = prompt
             if needsWorktreeSetup {
                 // Wait for chat naming and use the result directly as the branch base
-                let chatName = await self.namingTask?.value ?? text
+                let chatName = await self.namingTask?.value ?? capturedText
                 let branch = Self.branchName(from: chatName)
                 await self.setupWorktree(branchName: branch, apiClient: apiClient, modelContext: modelContext)
+                // If a worktree was created and there were uploaded files, copy them into
+                // the worktree so Claude can work with them in the git context, then
+                // rebuild the prompt so the paths it receives point inside the worktree.
+                if self.worktreePath != nil && !capturedAttachments.isEmpty {
+                    let worktreeAttachments = await self.copyAttachmentsToWorktree(capturedAttachments, apiClient: apiClient)
+                    let rebuiltPrompt = self.buildPrompt(text: capturedText, attachments: worktreeAttachments)
+                    claudePrompt = rebuiltPrompt
+                    // Sync the displayed user bubble to show the same paths Claude receives
+                    userMessage.content = [.text(rebuiltPrompt)]
+                }
             }
-            await executeClaudeCommand(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
+            await executeClaudeCommand(prompt: claudePrompt, apiClient: apiClient, modelContext: modelContext)
         }
     }
 
@@ -1446,6 +1463,14 @@ final class ChatViewModel {
 
     // MARK: - Worktrees
 
+    /// Returns a POSIX single-quoted shell argument with any internal single quotes escaped.
+    /// Single quotes have no escape sequence in POSIX shell, so the idiom is:
+    /// close the quote, insert a backslash-escaped literal quote, then reopen.
+    /// e.g. "it's here" → "'it'\\''s here'"
+    static func shellEscapePath(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
     /// Converts a chat name to a kebab-case git branch name.
     /// e.g. "Add dark mode" → "add-dark-mode"
     static func branchName(from chatName: String) -> String {
@@ -1509,6 +1534,43 @@ final class ChatViewModel {
             try? modelContext.save()
         }
         logger.info("[Worktree] Created at \(path) on branch \(uniqueBranchName)")
+    }
+
+    /// Copies uploaded files into the worktree directory and returns updated AttachedFile
+    /// values whose paths point to the new locations. Files that fail to copy are left
+    /// with their original paths so Claude can still access them via the absolute path.
+    func copyAttachmentsToWorktree(_ attachments: [AttachedFile], apiClient: SpritesAPIClient) async -> [AttachedFile] {
+        guard let worktree = worktreePath else { return attachments }
+
+        // Build copy commands and track (original array index → new path) for files that need moving.
+        // Paths are single-quote escaped to prevent shell injection from filenames with apostrophes.
+        var copyJobs: [(index: Int, newPath: String)] = []
+        var copyCommands: [String] = []
+
+        for (i, attachment) in attachments.enumerated() {
+            let filename = URL(fileURLWithPath: attachment.path).lastPathComponent
+            let newPath = worktree.hasSuffix("/") ? worktree + filename : worktree + "/" + filename
+            guard attachment.path != newPath else { continue }
+            copyJobs.append((index: i, newPath: newPath))
+            copyCommands.append("cp \(Self.shellEscapePath(attachment.path)) \(Self.shellEscapePath(newPath)) 2>/dev/null && echo ok || echo skip")
+        }
+
+        guard !copyJobs.isEmpty else { return attachments }
+
+        let command = copyCommands.joined(separator: "; ")
+        let (output, _) = await apiClient.runExec(spriteName: spriteName, command: command, timeout: 30)
+        let results = output
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        // Apply results: only use the new path where cp succeeded; fall back to original otherwise.
+        var updated = attachments
+        for (jobIndex, job) in copyJobs.enumerated() {
+            if jobIndex < results.count && results[jobIndex] == "ok" {
+                updated[job.index] = AttachedFile(name: attachments[job.index].name, path: job.newPath)
+            }
+        }
+        return updated
     }
 
     private func fetchChat(modelContext: ModelContext) -> SpriteChat? {
