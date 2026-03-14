@@ -81,6 +81,7 @@ struct ChatInputBar: View {
                             .font(.title2)
                     }
                     .tint(.red)
+                    .accessibilityLabel("Stop response")
                     .buttonStyle(.glass)
                     .confirmationDialog("Stop Claude?", isPresented: $showStopConfirmation) {
                         Button("Stop", role: .destructive, action: onInterrupt)
@@ -106,6 +107,7 @@ struct ChatInputBar: View {
                 }
                 .tint(isEmpty || hasQueuedMessage ? .gray : Color("AccentColor"))
                 .disabled(isEmpty || hasQueuedMessage)
+                .accessibilityLabel("Send message")
                 .buttonStyle(.glass)
             }
         }
