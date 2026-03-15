@@ -77,6 +77,9 @@ final class ChatViewModel {
     private var previousSessionDisconnected = false
     private var pendingForkContext: String?
     private var apiClient: SpritesAPIClient?
+    /// Set by SpriteDetailView to indicate this chat is currently being viewed.
+    /// When true, result events do not trigger the unread indicator.
+    var isActive: Bool = false
 
     /// UUIDs of Claude NDJSON events already processed.
     /// Used by reconnect to skip already-handled events instead of clearing content.
@@ -1283,6 +1286,9 @@ final class ChatViewModel {
                     if ["Write", "Edit"].contains(toolUse.name) {
                         turnHasMutations = true
                     }
+                    if toolUse.name == "mcp__askUser__WispAsk" && !isReplaying {
+                        markChatUnread(modelContext: modelContext)
+                    }
                 case .unknown:
                     break
                 }
@@ -1328,7 +1334,9 @@ final class ChatViewModel {
             }
             receivedResultEvent = true
             sessionId = resultEvent.sessionId
+            let alreadyComplete = fetchChat(modelContext: modelContext)?.lastSessionComplete ?? false
             saveSession(modelContext: modelContext, isComplete: true)
+            if !alreadyComplete { markChatUnread(modelContext: modelContext) }
 
             let autoCheckpointEnabled = UserDefaults.standard.bool(forKey: "autoCheckpoint")
             if !isReplaying, turnHasMutations, autoCheckpointEnabled, let apiClient {
@@ -1646,6 +1654,13 @@ final class ChatViewModel {
             predicate: #Predicate { $0.id == id }
         )
         return try? modelContext.fetch(descriptor).first
+    }
+
+    private func markChatUnread(modelContext: ModelContext) {
+        guard !isActive else { return }
+        guard let chat = fetchChat(modelContext: modelContext) else { return }
+        chat.isUnread = true
+        try? modelContext.save()
     }
 
     private func saveSession(modelContext: ModelContext, isComplete: Bool? = nil) {

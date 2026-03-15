@@ -195,7 +195,18 @@ struct SpriteDetailView: View {
                             Button {
                                 showChatSwitcher = true
                             } label: {
+                                let hasOtherUnread = chatListViewModel.chats.contains {
+                                    $0.isUnread && $0.id != chatListViewModel.activeChatId
+                                }
                                 Image(systemName: "bubble.left.and.bubble.right")
+                                    .overlay(alignment: .topTrailing) {
+                                        if hasOtherUnread {
+                                            Circle()
+                                                .fill(Color.accentColor)
+                                                .frame(width: 8, height: 8)
+                                                .offset(x: 3, y: -3)
+                                        }
+                                    }
                             }
                         }
 
@@ -245,6 +256,12 @@ struct SpriteDetailView: View {
             guard newId != oldId, let newId,
                   let chat = chatListViewModel.chats.first(where: { $0.id == newId }) else { return }
             switchToChat(chat)
+        }
+        .onAppear {
+            chatViewModel?.isActive = true
+        }
+        .onDisappear {
+            chatViewModel?.isActive = false
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
@@ -308,6 +325,15 @@ struct SpriteDetailView: View {
     private func switchToChat(_ chat: SpriteChat) {
         guard chatViewModel?.chatId != chat.id else { return }
 
+        // Deactivate outgoing VM
+        chatViewModel?.isActive = false
+
+        // Clear unread when opening a chat
+        if chat.isUnread {
+            chat.isUnread = false
+            try? modelContext.save()
+        }
+
         // Look up or create a VM from the app-wide cache — old VM keeps streaming in background
         let vm = chatSessionManager.viewModel(
             for: chat,
@@ -315,6 +341,7 @@ struct SpriteDetailView: View {
             apiClient: apiClient,
             modelContext: modelContext
         )
+        vm.isActive = true
         chatViewModel = vm
         chatListViewModel.activeChatId = chat.id
 
@@ -388,4 +415,20 @@ struct SpriteDetailView: View {
         return "Context from a previous conversation (filesystem was restored to an earlier checkpoint):\n\n"
             + lines.joined(separator: "\n\n")
     }
+}
+
+private func mockSprite(name: String = "my-sprite", status: String = "running") -> Sprite {
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    return try! decoder.decode(Sprite.self, from: Data("""
+        {"id":"s1","name":"\(name)","status":"\(status)","created_at":"2025-01-15T10:30:00Z"}
+        """.utf8))
+}
+
+#Preview {
+    @Previewable @State var selectedTab: SpriteTab = .chat
+    SpriteDetailView(sprite: mockSprite(), selectedTab: $selectedTab)
+        .environment(SpritesAPIClient())
+        .environment(ChatSessionManager())
+        .modelContainer(for: [SpriteChat.self, SpriteSession.self], inMemory: true)
 }
