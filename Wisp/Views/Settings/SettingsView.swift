@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(SpritesAPIClient.self) private var apiClient
-    @AppStorage("claudeModel") private var claudeModel: String = ClaudeModel.sonnet.rawValue
+    @AppStorage("claudeModel") private var claudeModel: String = ClaudeModel.opus.rawValue
     @AppStorage("maxTurns") private var maxTurns: Int = 0
     @AppStorage("claudeQuestionTool") private var claudeQuestionTool: Bool = true
     @AppStorage("gitName") private var gitName: String = ""

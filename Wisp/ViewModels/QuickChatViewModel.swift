@@ -56,7 +56,7 @@ final class QuickChatViewModel {
         }
 
         let escapedQuestion = question.replacingOccurrences(of: "'", with: "'\\''")
-        let modelId = UserDefaults.standard.string(forKey: "claudeModel") ?? ClaudeModel.sonnet.rawValue
+        let modelId = UserDefaults.standard.string(forKey: "claudeModel") ?? ClaudeModel.opus.rawValue
 
         var claudeCmd = "claude -p --verbose --output-format stream-json --dangerously-skip-permissions"
         claudeCmd += " --disallowedTools \"Bash,Write,Edit,MultiEdit,WebSearch,WebFetch\""

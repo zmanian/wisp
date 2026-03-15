@@ -741,7 +741,7 @@ final class ChatViewModel {
             claudeCmd += " --mcp-config \(shellEscape(configPath))"
         }
 
-        let modelId = UserDefaults.standard.string(forKey: "claudeModel") ?? ClaudeModel.sonnet.rawValue
+        let modelId = UserDefaults.standard.string(forKey: "claudeModel") ?? ClaudeModel.opus.rawValue
         claudeCmd += " --model \(modelId)"
 
         let maxTurns = UserDefaults.standard.integer(forKey: "maxTurns")
