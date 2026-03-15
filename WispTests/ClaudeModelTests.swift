@@ -10,7 +10,7 @@ struct ClaudeModelTests {
         #expect(ClaudeModel.haiku.displayName == "Haiku")
     }
 
-    @Test func rawValuesAreAliases() {
+    @Test func rawValuesAre1MContextAliases() {
         #expect(ClaudeModel.sonnet.rawValue == "sonnet[1m]")
         #expect(ClaudeModel.opus.rawValue == "opus[1m]")
         #expect(ClaudeModel.haiku.rawValue == "haiku")
