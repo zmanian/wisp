@@ -46,6 +46,7 @@ struct SettingsView: View {
             instructionsSection
             quickMessagesSection
             appearanceSection
+            aboutSection
             #if DEBUG
             developerSection
             #endif
@@ -222,6 +223,14 @@ struct SettingsView: View {
                 Text("Dark").tag("dark")
             }
             .pickerStyle(.segmented)
+        }
+    }
+
+    private var aboutSection: some View {
+        Section("About") {
+            Link(destination: URL(string: "https://github.com/mcintyre94/wisp")!) {
+                Label("Open Source", systemImage: "chevron.left.forwardslash.chevron.right")
+            }
         }
     }
 
