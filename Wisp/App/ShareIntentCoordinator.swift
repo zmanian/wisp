@@ -8,7 +8,7 @@ struct ShareIntent: Equatable {
 @Observable
 @MainActor
 final class ShareIntentCoordinator {
-    static let appGroupID = "group.com.wisp.app"
+    nonisolated static let appGroupID = "group.com.wisp.app"
 
     var pendingIntent: ShareIntent?
 

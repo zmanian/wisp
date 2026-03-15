@@ -77,6 +77,7 @@
 		C3D82F1A7E4B9A0561FED234 /* SpriteNavigationPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E74C3B8D2F0C9547B6A891 /* SpriteNavigationPanel.swift */; };
 		C4D5E6F7A8B90A41637E8FA2 /* CheckpointMarkerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */; };
 		C575C7232C5FCA1A3F18A9D8 /* WispApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9CB342E72F33408AA0CB63 /* WispApp.swift */; };
+		SHARE001122334455667788 /* ShareIntentCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHARE001122334455667700 /* ShareIntentCoordinator.swift */; };
 		C6D4E28F9B0ABCD112E3F405 /* ClaudeModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C3D17E8A9FABC001D2E3F4 /* ClaudeModelTests.swift */; };
 		C6F4D8ADAC992544E82FC4D0 /* ChatStatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42C4A8D129C538233C34B2A6 /* ChatStatusBar.swift */; };
 		C77F2C1E11DECAE31E0F5ECC /* SpriteOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22353867496BED816814F410 /* SpriteOverviewView.swift */; };
@@ -246,6 +247,7 @@
 		DD11EE22FF334455AA66BB03 /* ServiceTypesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceTypesTests.swift; sourceTree = "<group>"; };
 		DD22EE33FF4400110007AA02 /* AttachmentChipsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentChipsView.swift; sourceTree = "<group>"; };
 		DD9CB342E72F33408AA0CB63 /* WispApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispApp.swift; sourceTree = "<group>"; };
+		SHARE001122334455667700 /* ShareIntentCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareIntentCoordinator.swift; sourceTree = "<group>"; };
 		E01E14B5D87751457C549C17 /* SpritesAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpritesAPIClient.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000001 /* WispCodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispCodeHighlighter.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000002 /* WispMarkdownTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispMarkdownTheme.swift; sourceTree = "<group>"; };
@@ -390,6 +392,7 @@
 			isa = PBXGroup;
 			children = (
 				AA11BB22CC33DD44EE55FF09 /* AppConfig.swift */,
+				SHARE001122334455667700 /* ShareIntentCoordinator.swift */,
 				DD9CB342E72F33408AA0CB63 /* WispApp.swift */,
 			);
 			path = App;
@@ -865,6 +868,7 @@
 				CC11DD22EE33FF4400110003 /* SpriteFileBrowserView.swift in Sources */,
 				C4D5E6F7A8B90A41637E8FA2 /* CheckpointMarkerView.swift in Sources */,
 				E1F2A3B4C5D6E7F800000014 /* UnifiedDiffView.swift in Sources */,
+				SHARE001122334455667788 /* ShareIntentCoordinator.swift in Sources */,
 				C575C7232C5FCA1A3F18A9D8 /* WispApp.swift in Sources */,
 				AA3500BB00CC00DD00EE0001 /* BashQuickView.swift in Sources */,
 				AA3200BB00CC00DD00EE0001 /* BashQuickViewModel.swift in Sources */,

@@ -101,7 +101,7 @@ private struct ChatScreenshot: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                ChatStatusBar(status: .streaming, modelName: "claude-4-sonnet")
+                ChatStatusBar(status: .streaming, modelName: "claude-4-sonnet", modelOverride: .constant(nil))
 
                 ScrollView {
                     VStack(spacing: 12) {
