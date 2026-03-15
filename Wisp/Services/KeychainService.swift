@@ -31,6 +31,11 @@ struct KeychainService: Sendable {
         guard status == errSecSuccess else {
             throw KeychainError.saveFailed(status)
         }
+
+        // Mirror the sprites token to the App Group so the share extension can read it.
+        if key == .spritesToken {
+            UserDefaults(suiteName: ShareIntentCoordinator.appGroupID)?.set(value, forKey: "spritesToken")
+        }
     }
 
     func load(key: KeychainKey) -> String? {
@@ -66,6 +71,11 @@ struct KeychainService: Sendable {
             kSecAttrAccount as String: key.rawValue,
         ]
         let status = SecItemDelete(query as CFDictionary)
+
+        if key == .spritesToken {
+            UserDefaults(suiteName: ShareIntentCoordinator.appGroupID)?.removeObject(forKey: "spritesToken")
+        }
+
         return status == errSecSuccess || status == errSecItemNotFound
     }
 }

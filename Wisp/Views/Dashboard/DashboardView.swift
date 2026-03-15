@@ -10,6 +10,7 @@ struct DashboardView: View {
     @Environment(SpritesAPIClient.self) private var apiClient
     @Environment(LoopManager.self) private var loopManager
     @Environment(ChatSessionManager.self) private var chatSessionManager
+    @Environment(ShareIntentCoordinator.self) private var shareIntentCoordinator
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SpriteLoop.createdAt, order: .reverse) private var loops: [SpriteLoop]
@@ -221,6 +222,7 @@ struct DashboardView: View {
         }
         .task {
             await viewModel.loadSprites(apiClient: apiClient)
+            applyPendingShareIntent()
         }
         .task {
             // Reconnect any chats that were in-progress when the app was last closed.
@@ -244,6 +246,10 @@ struct DashboardView: View {
                 try? await Task.sleep(for: .seconds(5))
                 await viewModel.refreshSprites(apiClient: apiClient)
             }
+        }
+        .onChange(of: shareIntentCoordinator.pendingIntent) { _, intent in
+            guard intent != nil else { return }
+            applyPendingShareIntent()
         }
         .sheet(isPresented: $viewModel.showCreateSheet) {
             CreateSpriteSheet()
@@ -272,11 +278,20 @@ struct DashboardView: View {
             }
         }
     }
+
+    private func applyPendingShareIntent() {
+        guard let intent = shareIntentCoordinator.pendingIntent,
+              let sprite = viewModel.sprites.first(where: { $0.name == intent.spriteName })
+        else { return }
+        selectedSpriteID = sprite.id
+        selectedTab = .chat
+    }
 }
 
 #Preview {
     DashboardView()
         .environment(SpritesAPIClient())
         .environment(ChatSessionManager())
+        .environment(ShareIntentCoordinator())
         .modelContainer(for: [SpriteChat.self, SpriteSession.self], inMemory: true)
 }
