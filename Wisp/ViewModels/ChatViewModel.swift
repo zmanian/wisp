@@ -643,17 +643,39 @@ final class ChatViewModel {
         // If the last session completed cleanly, content is already loaded from
         // persistence — no need to hit the network at all.
         if let chat = fetchChat(modelContext: modelContext), chat.lastSessionComplete {
+            // Edge case: app killed between persistMessages and saveSession(isComplete:false).
+            // The session was previously complete but a new user message was appended and
+            // persisted before the service was created. Restore it as a draft.
+            restoreUndeliveredDraft(modelContext: modelContext)
             return
         }
 
         streamTask = Task {
             // Only reconnect if the service exists (running or stopped with logs)
             guard let serviceInfo = try? await apiClient.getServiceStatus(spriteName: spriteName, serviceName: serviceName)
-            else { return }
+            else {
+                // Service was never created (e.g. app killed before the service call).
+                // Restore any trailing user message as a draft rather than leaving a
+                // stale bubble with no response.
+                restoreUndeliveredDraft(modelContext: modelContext)
+                return
+            }
 
             let alreadyStopped = serviceInfo.state.status != "running"
             await reconnectToServiceLogs(apiClient: apiClient, modelContext: modelContext, serviceAlreadyStopped: alreadyStopped)
         }
+    }
+
+    /// If the last message is a user message with no response, remove it from history
+    /// and restore its text to the input box as a draft.
+    func restoreUndeliveredDraft(modelContext: ModelContext) {
+        guard let last = messages.last, last.role == .user else { return }
+        let text = last.textContent
+        messages.removeLast()
+        persistMessages(modelContext: modelContext)
+        guard !text.isEmpty, inputText.isEmpty else { return }
+        inputText = text
+        saveDraft(modelContext: modelContext)
     }
 
     // MARK: - Private
@@ -809,9 +831,6 @@ final class ChatViewModel {
         // Attempt reconnection on disconnect
         if case .disconnected = streamResult {
             logger.info("[Chat] Disconnected mid-stream, attempting reconnect via service logs")
-            if let msg = currentAssistantMessage ?? messages.last(where: { $0.role == .assistant }) {
-                msg.content.append(.systemNotice("Connection lost — reconnecting..."))
-            }
             await reconnectToServiceLogs(apiClient: apiClient, modelContext: modelContext, serviceAlreadyStopped: false)
             return
         }
@@ -1079,7 +1098,11 @@ final class ChatViewModel {
         if let existing = currentAssistantMessage {
             assistantMessage = existing
             if !hasPriorEvents { assistantMessage.content = [] }
-        } else if let last = messages.last(where: { $0.role == .assistant }) {
+        } else if let last = messages.last, last.role == .assistant {
+            // Only reuse an assistant message if it's already at the tail — meaning
+            // the last exchange ended with a partial response that needs replaying.
+            // If the last message is a user message, fall through to create a new
+            // assistant message after it (each service is scoped to one user message).
             assistantMessage = last
             if !hasPriorEvents { assistantMessage.content = [] }
             currentAssistantMessage = last
