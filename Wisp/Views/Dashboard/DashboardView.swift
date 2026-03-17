@@ -223,6 +223,7 @@ struct DashboardView: View {
         .task {
             await viewModel.loadSprites(apiClient: apiClient)
             applyPendingShareIntent()
+            apiClient.cleanupLegacyServices(spriteNames: viewModel.sprites.map(\.name), modelContext: modelContext)
         }
         .task {
             // Reconnect any chats that were in-progress when the app was last closed.

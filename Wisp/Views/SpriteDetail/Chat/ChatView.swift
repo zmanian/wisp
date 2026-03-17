@@ -457,7 +457,6 @@ private struct WorkingDirectoryLabel: View {
     let viewModel = ChatViewModel(
         spriteName: "my-sprite",
         chatId: UUID(),
-        currentServiceName: nil,
         workingDirectory: "/home/sprite/project"
     )
     NavigationStack {

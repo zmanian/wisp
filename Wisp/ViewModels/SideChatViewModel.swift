@@ -63,9 +63,8 @@ final class SideChatViewModel {
         ]
         let fullCommand = commandParts.joined(separator: " && ")
 
-        let serviceName = "wisp-side-\(UUID().uuidString.prefix(8).lowercased())"
-        let config = ServiceRequest(cmd: "bash", args: ["-c", fullCommand], needs: nil, httpPort: nil)
-        let stream = apiClient.streamService(spriteName: spriteName, serviceName: serviceName, config: config)
+        let session = apiClient.createExecSession(spriteName: spriteName, command: fullCommand)
+        session.connect()
 
         await parser.reset()
 
@@ -73,38 +72,28 @@ final class SideChatViewModel {
         var receivedResult = false
 
         do {
-            streamLoop: for try await event in stream {
+            streamLoop: for try await event in session.events() {
                 guard !Task.isCancelled else { break streamLoop }
 
-                switch event.type {
-                case .stdout:
-                    guard let text = event.data else { continue }
+                switch event {
+                case .stdout(let data):
                     receivedData = true
-
-                    var dataStr = ChatViewModel.stripLogTimestamps(text)
-                    if !dataStr.hasSuffix("\n") { dataStr += "\n" }
-                    let parsed = await parser.parse(data: Data(dataStr.utf8))
+                    let parsed = await parser.parse(data: data)
                     for e in parsed {
                         handle(e)
                         if case .result = e { receivedResult = true }
                     }
                     if receivedResult { break streamLoop }
 
+                case .stderr:
+                    receivedData = true
+
                 case .exit:
                     let remaining = await parser.flush()
                     for e in remaining { handle(e) }
-
-                case .error:
-                    if !receivedData {
-                        error = event.data ?? "Service error"
-                    }
-
-                case .complete:
-                    let flushed = await parser.flush()
-                    for e in flushed { handle(e) }
                     break streamLoop
 
-                default:
+                case .sessionInfo:
                     break
                 }
             }
@@ -118,10 +107,7 @@ final class SideChatViewModel {
             }
         }
 
-        // Clean up the service — it's ephemeral
-        Task {
-            try? await apiClient.deleteService(spriteName: spriteName, serviceName: serviceName)
-        }
+        session.disconnect()
 
         if !Task.isCancelled {
             isStreaming = false

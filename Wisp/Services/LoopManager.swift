@@ -321,9 +321,6 @@ final class LoopManager {
         ]
         let fullCommand = commandParts.joined(separator: " && ")
 
-        let serviceName = "wisp-loop-\(UUID().uuidString.prefix(8).lowercased())"
-        let config = ServiceRequest(cmd: "bash", args: ["-c", fullCommand], needs: nil, httpPort: nil)
-
         return await withTaskCancellationHandler {
             // 3. Stream and parse (with retry for transient network errors)
             var lastError: Error?
@@ -331,9 +328,8 @@ final class LoopManager {
 
             for attempt in 1...maxAttempts {
                 if attempt > 1 {
-                    try? await apiClient.deleteService(spriteName: spriteName, serviceName: serviceName)
                     let backoff = attempt * 10  // 10s, 20s, 30s...
-                    logger.info("Retrying service stream for loop (attempt \(attempt)/\(maxAttempts), backoff \(backoff)s)")
+                    logger.info("Retrying exec stream for loop (attempt \(attempt)/\(maxAttempts), backoff \(backoff)s)")
                     try? await Task.sleep(for: .seconds(backoff))
                     // Re-verify sprite is running before retry
                     if let sprite = try? await apiClient.getSprite(name: spriteName), sprite.status != .running {
@@ -347,50 +343,58 @@ final class LoopManager {
                 }
                 guard !Task.isCancelled else { return .failure(CancellationError()) }
 
-                let stream = apiClient.streamService(spriteName: spriteName, serviceName: serviceName, config: config)
+                let session = apiClient.createExecSession(spriteName: spriteName, command: fullCommand)
+                session.connect()
                 let parser = ClaudeStreamParser()
                 var responseText = ""
                 var gotData = false
 
                 do {
-                    for try await event in stream {
+                    for try await event in session.events() {
                         try Task.checkCancellation()
-                        gotData = true
-                        guard event.type == .stdout, let stdoutText = event.data else { continue }
-                        let rawData = Data(stdoutText.utf8)
-                        let claudeEvents = await parser.parse(data: rawData)
-                        for claudeEvent in claudeEvents {
-                            switch claudeEvent {
-                            case .assistant(let assistantEvent):
-                                for block in assistantEvent.message.content {
-                                    if case .text(let text) = block {
+
+                        switch event {
+                        case .stdout(let data):
+                            gotData = true
+                            let claudeEvents = await parser.parse(data: data)
+                            for claudeEvent in claudeEvents {
+                                switch claudeEvent {
+                                case .assistant(let assistantEvent):
+                                    for block in assistantEvent.message.content {
+                                        if case .text(let text) = block {
+                                            responseText += text
+                                        }
+                                    }
+                                case .result(let resultEvent):
+                                    if let text = resultEvent.result, !text.isEmpty {
                                         responseText += text
                                     }
+                                default:
+                                    break
                                 }
-                            case .result(let resultEvent):
-                                if let text = resultEvent.result, !text.isEmpty {
-                                    responseText += text
-                                }
-                            default:
-                                break
                             }
+                        case .stderr:
+                            gotData = true
+                        case .exit:
+                            break
+                        case .sessionInfo:
+                            break
                         }
                     }
                 } catch {
+                    session.disconnect()
                     if error is CancellationError || Task.isCancelled {
-                        try? await apiClient.deleteService(spriteName: spriteName, serviceName: serviceName)
                         return .failure(CancellationError())
                     }
                     // Retry if we got no data (connection failed before streaming started)
                     let urlError = error as? URLError
                     let errorCode = urlError?.code.rawValue ?? -1
-                    logger.warning("Service stream error (attempt \(attempt)/\(maxAttempts), gotData=\(gotData), code=\(errorCode)): \(error.localizedDescription)")
+                    logger.warning("Exec stream error (attempt \(attempt)/\(maxAttempts), gotData=\(gotData), code=\(errorCode)): \(error.localizedDescription)")
                     if !gotData && attempt < maxAttempts {
                         lastError = error
                         continue
                     }
                     if responseText.isEmpty {
-                        try? await apiClient.deleteService(spriteName: spriteName, serviceName: serviceName)
                         return .failure(error)
                     }
                 }
@@ -413,7 +417,7 @@ final class LoopManager {
                     }
                 }
 
-                try? await apiClient.deleteService(spriteName: spriteName, serviceName: serviceName)
+                session.disconnect()
 
                 if Task.isCancelled {
                     return .failure(CancellationError())
@@ -423,13 +427,10 @@ final class LoopManager {
             }
 
             // All retries exhausted
-            try? await apiClient.deleteService(spriteName: spriteName, serviceName: serviceName)
             let underlying = lastError?.localizedDescription ?? "unknown"
             return .failure(NSError(domain: "LoopManager", code: -4, userInfo: [NSLocalizedDescriptionKey: "Failed after \(maxAttempts) retries: \(underlying)"]))
         } onCancel: {
-            Task {
-                try? await apiClient.deleteService(spriteName: spriteName, serviceName: serviceName)
-            }
+            // Exec sessions clean up automatically when disconnected
         }
     }
 }
