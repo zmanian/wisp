@@ -901,7 +901,7 @@ final class ChatViewModel {
     }
 
     /// Result of processing a service stream
-    enum StreamResult: CustomStringConvertible {
+    enum StreamResult: Equatable, CustomStringConvertible {
         case completed
         case timedOut
         case disconnected
