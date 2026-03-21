@@ -10,7 +10,6 @@ struct ChatInputBar: View {
     var onBrowseSpriteFiles: (() -> Void)? = nil
     var onPickPhoto: (() -> Void)? = nil
     var onPickFile: (() -> Void)? = nil
-    var onLongPressSend: (() -> Void)? = nil
     var onPasteFromClipboard: (() -> Void)? = nil
     var isUploading: Bool = false
     var attachedFiles: [AttachedFile] = []
@@ -103,14 +102,6 @@ struct ChatInputBar: View {
                 .tint(isEmpty || hasQueuedMessage ? .gray : Color("AccentColor"))
                 .disabled(isEmpty || hasQueuedMessage)
                 .buttonStyle(.glass)
-                .simultaneousGesture(
-                    LongPressGesture(minimumDuration: 0.5)
-                        .onEnded { _ in
-                            if !isEmpty && !hasQueuedMessage {
-                                onLongPressSend?()
-                            }
-                        }
-                )
                 .contextMenu {
                     if let onStash, !isEmpty {
                         Button("Stash Draft", systemImage: "tray.and.arrow.down") {

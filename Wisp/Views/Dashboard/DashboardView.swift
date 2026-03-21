@@ -8,12 +8,10 @@ enum SpriteSortOrder: String, CaseIterable {
 
 struct DashboardView: View {
     @Environment(SpritesAPIClient.self) private var apiClient
-    @Environment(LoopManager.self) private var loopManager
     @Environment(ChatSessionManager.self) private var chatSessionManager
     @Environment(ShareIntentCoordinator.self) private var shareIntentCoordinator
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \SpriteLoop.createdAt, order: .reverse) private var loops: [SpriteLoop]
     @State private var viewModel = DashboardViewModel()
     @Query(filter: #Predicate<SpriteChat> { $0.isUnread }) private var unreadChats: [SpriteChat]
     @State private var selectedSpriteID: String?
@@ -110,58 +108,6 @@ struct DashboardView: View {
                 } else {
                     List(selection: $selectedSpriteID) {
                         spriteListRows
-
-                        if !loops.isEmpty {
-                            Section("Loops") {
-                                ForEach(loops) { loop in
-                                    NavigationLink(destination: LoopDetailView(loop: loop)) {
-                                        LoopRowView(loop: loop)
-                                    }
-                                    .swipeActions(edge: .trailing) {
-                                        Button("Delete", role: .destructive) {
-                                            loopManager.stop(loopId: loop.id, modelContext: modelContext)
-                                            modelContext.delete(loop)
-                                            try? modelContext.save()
-                                        }
-                                    }
-                                    .swipeActions(edge: .leading) {
-                                        if loop.state == .active {
-                                            Button("Pause") {
-                                                loopManager.pause(loopId: loop.id, modelContext: modelContext)
-                                            }
-                                            .tint(.orange)
-                                        } else if loop.state == .paused {
-                                            Button("Resume") {
-                                                loopManager.resume(loop: loop, modelContext: modelContext)
-                                            }
-                                            .tint(.green)
-                                        }
-                                    }
-                                    .contextMenu {
-                                        if loop.state == .active {
-                                            Button {
-                                                loopManager.pause(loopId: loop.id, modelContext: modelContext)
-                                            } label: {
-                                                Label("Pause", systemImage: "pause.circle")
-                                            }
-                                        } else if loop.state == .paused {
-                                            Button {
-                                                loopManager.resume(loop: loop, modelContext: modelContext)
-                                            } label: {
-                                                Label("Resume", systemImage: "play.circle")
-                                            }
-                                        }
-                                        Button(role: .destructive) {
-                                            loopManager.stop(loopId: loop.id, modelContext: modelContext)
-                                            modelContext.delete(loop)
-                                            try? modelContext.save()
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)

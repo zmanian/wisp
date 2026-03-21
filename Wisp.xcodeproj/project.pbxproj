@@ -137,16 +137,10 @@
 		FF11AA22BB33CC44DD55EE04 /* ChatViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF11AA22BB33CC44DD55EE03 /* ChatViewModelTests.swift */; };
 		FFB48F025123550446943E29 /* SpriteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C849AF5732774C39968056 /* SpriteDetailView.swift */; };
 		AA0011BB22CC33DD44EE0002 /* ShellEscaping.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0001 /* ShellEscaping.swift */; };
-		AA0011BB22CC33DD44EE0004 /* LoopManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0003 /* LoopManager.swift */; };
 		AA0011BB22CC33DD44EE0006 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0005 /* LiveActivityManager.swift */; };
-		AA0011BB22CC33DD44EE0008 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0007 /* NotificationService.swift */; };
-		AA0011BB22CC33DD44EE000A /* LoopModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0009 /* LoopModels.swift */; };
 		AA0011BB22CC33DD44EE000C /* WispActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000B /* WispActivityAttributes.swift */; };
 		AA0011BB22CC33DD44EE000E /* ServicesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000D /* ServicesViewModel.swift */; };
 		AA0011BB22CC33DD44EE0010 /* SideChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000F /* SideChatViewModel.swift */; };
-		AA0011BB22CC33DD44EE0012 /* CreateLoopSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0011 /* CreateLoopSheet.swift */; };
-		AA0011BB22CC33DD44EE0014 /* LoopDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0013 /* LoopDetailView.swift */; };
-		AA0011BB22CC33DD44EE0016 /* LoopRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0015 /* LoopRowView.swift */; };
 		AA0011BB22CC33DD44EE0018 /* ScreenshotPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0017 /* ScreenshotPreviews.swift */; };
 		AA0011BB22CC33DD44EE001A /* SideChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0019 /* SideChatView.swift */; };
 		AA0011BB22CC33DD44EE001C /* ServiceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE001B /* ServiceDetailView.swift */; };
@@ -276,16 +270,10 @@
 		AA3800BB00CC00DD00EE0002 /* ChatSessionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionManagerTests.swift; sourceTree = "<group>"; };
 		FE9876543210ABCDEF987602 /* QuickChatViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickChatViewModelTests.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE0001 /* ShellEscaping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellEscaping.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE0003 /* LoopManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopManager.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE0005 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE0007 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE0009 /* LoopModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopModels.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE000B /* WispActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispActivityAttributes.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE000D /* ServicesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesViewModel.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE000F /* SideChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideChatViewModel.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE0011 /* CreateLoopSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateLoopSheet.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE0013 /* LoopDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopDetailView.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE0015 /* LoopRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopRowView.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE0017 /* ScreenshotPreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotPreviews.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE0019 /* SideChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideChatView.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE001B /* ServiceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDetailView.swift; sourceTree = "<group>"; };
@@ -358,8 +346,6 @@
 				AA11BB22CC33DD44EE55FF01 /* GitHubDeviceFlowClient.swift */,
 				15F643DCF84E0352A9F8D649 /* KeychainService.swift */,
 				AA0011BB22CC33DD44EE0005 /* LiveActivityManager.swift */,
-				AA0011BB22CC33DD44EE0003 /* LoopManager.swift */,
-				AA0011BB22CC33DD44EE0007 /* NotificationService.swift */,
 				E01E14B5D87751457C549C17 /* SpritesAPIClient.swift */,
 			);
 			path = Services;
@@ -379,7 +365,6 @@
 		2C8C6880DD6F72287E9A9520 /* Local */ = {
 			isa = PBXGroup;
 			children = (
-				AA0011BB22CC33DD44EE0009 /* LoopModels.swift */,
 				F1E2D3C4B5A60798192A3B4C /* PersistedChatMessage.swift */,
 				DD0011AA22BB33CC44EE0101 /* QuickMessage.swift */,
 				A1B2C3D4E5F60718293A4B5D /* SpriteChat.swift */,
@@ -540,7 +525,6 @@
 				A64C131D52B17EA7B36B1BE6 /* RootView.swift */,
 				8490ECAE9626FBAD9E65EA49 /* Auth */,
 				902EF50E1CB6723AF748F886 /* Dashboard */,
-				AA0011BB22CC33DD44EE0021 /* Loop */,
 				AA0011BB22CC33DD44EE0022 /* Previews */,
 				AA3600BB00CC00DD00EE0001 /* QuickActions */,
 				A5E41B8F9DACBEC637F8192A /* Settings */,
@@ -632,16 +616,6 @@
 				AFC390C3D284C1E02E68458F /* Views */,
 			);
 			path = Wisp;
-			sourceTree = "<group>";
-		};
-		AA0011BB22CC33DD44EE0021 /* Loop */ = {
-			isa = PBXGroup;
-			children = (
-				AA0011BB22CC33DD44EE0011 /* CreateLoopSheet.swift */,
-				AA0011BB22CC33DD44EE0013 /* LoopDetailView.swift */,
-				AA0011BB22CC33DD44EE0015 /* LoopRowView.swift */,
-			);
-			path = Loop;
 			sourceTree = "<group>";
 		};
 		AA0011BB22CC33DD44EE0022 /* Previews */ = {
@@ -879,16 +853,10 @@
 				E1F2A3B4C5D6E7F800000012 /* WispCodeHighlighter.swift in Sources */,
 				E1F2A3B4C5D6E7F800000013 /* WispMarkdownTheme.swift in Sources */,
 				AA0011BB22CC33DD44EE0002 /* ShellEscaping.swift in Sources */,
-				AA0011BB22CC33DD44EE0004 /* LoopManager.swift in Sources */,
 				AA0011BB22CC33DD44EE0006 /* LiveActivityManager.swift in Sources */,
-				AA0011BB22CC33DD44EE0008 /* NotificationService.swift in Sources */,
-				AA0011BB22CC33DD44EE000A /* LoopModels.swift in Sources */,
 				AA0011BB22CC33DD44EE000C /* WispActivityAttributes.swift in Sources */,
 				AA0011BB22CC33DD44EE000E /* ServicesViewModel.swift in Sources */,
 				AA0011BB22CC33DD44EE0010 /* SideChatViewModel.swift in Sources */,
-				AA0011BB22CC33DD44EE0012 /* CreateLoopSheet.swift in Sources */,
-				AA0011BB22CC33DD44EE0014 /* LoopDetailView.swift in Sources */,
-				AA0011BB22CC33DD44EE0016 /* LoopRowView.swift in Sources */,
 				AA0011BB22CC33DD44EE0018 /* ScreenshotPreviews.swift in Sources */,
 				AA0011BB22CC33DD44EE001A /* SideChatView.swift in Sources */,
 				AA0011BB22CC33DD44EE001C /* ServiceDetailView.swift in Sources */,
