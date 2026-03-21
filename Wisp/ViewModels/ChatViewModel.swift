@@ -56,6 +56,7 @@ final class ChatViewModel {
 
     private(set) var execSessionId: String?
     private(set) var sessionId: String?
+    private(set) var channelLastEventId: String?
     var workingDirectory: String
     private(set) var worktreePath: String?
     /// True when any chat for this sprite has had a worktree created, indicating the
@@ -215,12 +216,21 @@ final class ChatViewModel {
         currentAssistantMessage?.id
     }
 
+    private var transportMode: ClaudeChatTransportMode {
+        ClaudeChatTransportMode.current
+    }
+
+    private var usesChannelTransport: Bool {
+        transportMode == .channels
+    }
+
     func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
         self.apiClient = apiClient
         guard let chat = fetchChat(modelContext: modelContext) else { return }
 
         sessionId = chat.claudeSessionId
         execSessionId = chat.execSessionId
+        channelLastEventId = chat.channelLastEventId
         workingDirectory = chat.workingDirectory
         worktreePath = chat.worktreePath
 
@@ -605,15 +615,16 @@ final class ChatViewModel {
                     userMessage.content = [.text(rebuiltPrompt)]
                 }
             }
-            await executeClaudeCommand(prompt: claudePrompt, apiClient: apiClient, modelContext: modelContext)
+            await executePromptOverSelectedTransport(prompt: claudePrompt, apiClient: apiClient, modelContext: modelContext)
         }
     }
 
     func resumeAfterBackground(apiClient: SpritesAPIClient, modelContext: ModelContext) {
-        // Only interrupt genuine exec streams (.streaming / .connecting).
-        // If the VM is already reconnecting, leave it alone.
+        // Only interrupt active streams (.streaming / .connecting). If the VM is
+        // already reconnecting, leave it alone.
         guard status == .streaming || status == .connecting else { return }
-        // Cancel the stale stream — exec session stays alive on server for max_run_after_disconnect
+        // Cancel the stale stream and immediately attempt reattach if the current
+        // transport supports it.
         streamTask?.cancel()
         streamTask = nil
         status = .idle
@@ -646,6 +657,23 @@ final class ChatViewModel {
         // Note: we keep sessionId intact so the next message can resume the session.
         // If the session turns out to be stale, the stale-session retry logic handles it.
 
+        if usesChannelTransport {
+            channelLastEventId = nil
+            previousSessionDisconnected = true
+            if let apiClient {
+                let spriteName = spriteName
+                let bridgeChatId = chatId.uuidString.lowercased()
+                Task {
+                    guard let sprite = try? await apiClient.getSprite(name: spriteName) else { return }
+                    try? await apiClient.interruptChannelBridge(sprite: sprite, chatId: bridgeChatId)
+                }
+            }
+            if let modelContext {
+                saveSession(modelContext: modelContext, isComplete: true)
+            }
+            return
+        }
+
         // Kill the exec session to stop it; clear execSessionId to prevent reconnect
         let execId = execSessionId
         execSessionId = nil
@@ -657,8 +685,8 @@ final class ChatViewModel {
         }
     }
 
-    /// Attempt to reconnect to a running exec session when switching back to this chat.
-    /// Called after loadSession — reattaches to the exec WebSocket if one exists.
+    /// Attempt to reconnect to an in-flight chat stream when switching back to this chat.
+    /// Called after loadSession.
     func reconnectIfNeeded(apiClient: SpritesAPIClient, modelContext: ModelContext) {
         guard !isStreaming, !messages.isEmpty else { return }
 
@@ -672,6 +700,25 @@ final class ChatViewModel {
             return
         }
 
+        // Cancel any orphaned task that may still be running (e.g., from a concurrent
+        // call to reconnectIfNeeded triggered by both DashboardView startup and
+        // resumeAllAfterBackground before the first task had a chance to set .reconnecting).
+        streamTask?.cancel()
+
+        if usesChannelTransport {
+            let shouldAttemptChannelReconnect =
+                channelLastEventId != nil || sessionId != nil || messages.last?.role == .assistant
+            guard shouldAttemptChannelReconnect else {
+                restoreUndeliveredDraft(modelContext: modelContext)
+                return
+            }
+            streamTask = Task {
+                guard !Task.isCancelled else { return }
+                await reattachToChannel(apiClient: apiClient, modelContext: modelContext)
+            }
+            return
+        }
+
         guard let execId = execSessionId else {
             // No exec session ID: message was never sent, or legacy service-based chat.
             // Restore any trailing user message as a draft rather than leaving a
@@ -680,10 +727,6 @@ final class ChatViewModel {
             return
         }
 
-        // Cancel any orphaned task that may still be running (e.g., from a concurrent
-        // call to reconnectIfNeeded triggered by both DashboardView startup and
-        // resumeAllAfterBackground before the first task had a chance to set .reconnecting).
-        streamTask?.cancel()
         streamTask = Task {
             // If this task was pre-cancelled (e.g. superseded by a second reconnectIfNeeded
             // call in the same run-loop turn), bail out before touching any state.
@@ -705,6 +748,140 @@ final class ChatViewModel {
     }
 
     // MARK: - Private
+
+    private func executePromptOverSelectedTransport(
+        prompt: String,
+        apiClient: SpritesAPIClient,
+        modelContext: ModelContext
+    ) async {
+        if usesChannelTransport {
+            await executeChannelMessage(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
+        } else {
+            await executeClaudeCommand(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
+        }
+    }
+
+    private func preparePromptForSend(_ prompt: String, modelContext: ModelContext) -> String {
+        var fullPrompt = prompt
+        if previousSessionDisconnected, sessionId != nil {
+            fullPrompt = "[Note: The previous response was interrupted before it finished. Your last output may be incomplete — verify where you left off before continuing.]\n\n" + fullPrompt
+            previousSessionDisconnected = false
+        }
+        if let forkCtx = pendingForkContext {
+            fullPrompt = forkCtx + "\n\n---\n\n" + prompt
+            pendingForkContext = nil
+            if let chat = fetchChat(modelContext: modelContext) {
+                chat.forkContext = nil
+                try? modelContext.save()
+            }
+        }
+        return fullPrompt
+    }
+
+    private func resolveChannelSprite(apiClient: SpritesAPIClient) async throws -> Sprite {
+        try await apiClient.ensureChannelBridgeReady(spriteName: spriteName)
+    }
+
+    private func executeChannelMessage(
+        prompt: String,
+        apiClient: SpritesAPIClient,
+        modelContext: ModelContext
+    ) async {
+        status = .connecting
+
+        let sprite: Sprite
+        do {
+            sprite = try await resolveChannelSprite(apiClient: apiClient)
+        } catch AppError.invalidURL {
+            status = .error("This sprite does not expose a channel bridge URL yet")
+            return
+        } catch {
+            logger.error("Channel bridge setup failed: \(Self.sanitize(error.localizedDescription), privacy: .public)")
+            status = .error("Could not connect to the channel bridge")
+            return
+        }
+
+        let fullPrompt = preparePromptForSend(prompt, modelContext: modelContext)
+        execSessionId = nil
+        receivedSystemEvent = false
+        receivedResultEvent = false
+        turnHasMutations = false
+        processedEventUUIDs = []
+        hasPlayedFirstTextHaptic = false
+        saveSession(modelContext: modelContext, isComplete: false)
+
+        let assistantMessage = ChatMessage(role: .assistant)
+        messages.append(assistantMessage)
+        currentAssistantMessage = assistantMessage
+
+        let modelId = modelOverride?.rawValue ?? UserDefaults.standard.string(forKey: "claudeModel") ?? ClaudeModel.sonnet.rawValue
+        let maxTurns = UserDefaults.standard.integer(forKey: "maxTurns")
+        let customInstructions = UserDefaults.standard.string(forKey: "customInstructions") ?? ""
+        let request = ChannelBridgeMessageRequest(
+            chatId: chatId.uuidString.lowercased(),
+            text: fullPrompt,
+            workingDirectory: workingDirectory,
+            sessionId: sessionId,
+            model: modelId,
+            maxTurns: maxTurns > 0 ? maxTurns : nil,
+            customInstructions: customInstructions.isEmpty ? nil : customInstructions,
+            attachments: []
+        )
+
+        do {
+            try await apiClient.postChannelBridgeMessage(sprite: sprite, message: request)
+        } catch {
+            logger.error("Channel bridge POST failed: \(Self.sanitize(error.localizedDescription), privacy: .public)")
+            if currentAssistantMessage?.id == assistantMessage.id {
+                currentAssistantMessage = nil
+            }
+            if let idx = messages.firstIndex(where: { $0.id == assistantMessage.id }) {
+                messages.remove(at: idx)
+            }
+            status = .error("Failed to send message through the channel bridge")
+            persistMessages(modelContext: modelContext)
+            return
+        }
+
+        let streamResult = await processChannelStream(
+            events: apiClient.streamChannelBridgeEvents(
+                sprite: sprite,
+                chatId: chatId.uuidString.lowercased(),
+                lastEventId: channelLastEventId
+            ),
+            modelContext: modelContext
+        )
+
+        guard !Task.isCancelled else { return }
+
+        if currentAssistantMessage?.id == assistantMessage.id {
+            currentAssistantMessage = nil
+        }
+
+        if case .disconnected = streamResult {
+            logger.info("[Chat] Channel stream disconnected mid-response, waiting for reattach")
+            previousSessionDisconnected = true
+            status = .idle
+            persistMessages(modelContext: modelContext)
+            return
+        }
+
+        saveSession(modelContext: modelContext)
+        if case .streaming = status {
+            status = .idle
+        }
+        persistMessages(modelContext: modelContext)
+
+        if let queued = queuedPrompt {
+            let prompt = buildPrompt(text: queued, attachments: queuedAttachments)
+            queuedPrompt = nil
+            queuedAttachments = []
+            let userMessage = ChatMessage(role: .user, content: [.text(prompt)])
+            messages.append(userMessage)
+            persistMessages(modelContext: modelContext)
+            await executePromptOverSelectedTransport(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
+        }
+    }
 
     private func executeClaudeCommand(
         prompt: String,
@@ -736,6 +913,7 @@ final class ChatViewModel {
         }
 
         // Persist the new session immediately; clear any prior completion flag
+        channelLastEventId = nil
         saveSession(modelContext: modelContext, isComplete: false)
 
         guard let claudeToken = apiClient.claudeToken else {
@@ -743,19 +921,7 @@ final class ChatViewModel {
             return
         }
 
-        var fullPrompt = prompt
-        if previousSessionDisconnected, sessionId != nil {
-            fullPrompt = "[Note: The previous response was interrupted by a network disconnect. Your last output may be incomplete — verify where you left off before continuing.]\n\n" + fullPrompt
-            previousSessionDisconnected = false
-        }
-        if let forkCtx = pendingForkContext {
-            fullPrompt = forkCtx + "\n\n---\n\n" + prompt
-            pendingForkContext = nil
-            if let chat = fetchChat(modelContext: modelContext) {
-                chat.forkContext = nil
-                try? modelContext.save()
-            }
-        }
+        let fullPrompt = preparePromptForSend(prompt, modelContext: modelContext)
 
         // Build the full bash -c command with env vars inlined
         var commandParts: [String] = [
@@ -917,6 +1083,33 @@ final class ChatViewModel {
         }
     }
 
+    private func handleOrSkipStreamEvent(_ parsedEvent: ClaudeStreamEvent, modelContext: ModelContext) {
+        if let uuid = parsedEvent.uuid, processedEventUUIDs.contains(uuid) {
+            switch parsedEvent {
+            case .system(let se):
+                receivedSystemEvent = true
+                sessionId = se.sessionId
+                modelName = se.model
+            case .result(let re):
+                receivedResultEvent = true
+                sessionId = re.sessionId
+            default:
+                break
+            }
+            return
+        }
+        if let uuid = parsedEvent.uuid {
+            processedEventUUIDs.insert(uuid)
+        }
+        if isReplayingLiveService {
+            applyReplayBuffer()
+            isReplaying = false
+            isReplayingLiveService = false
+            if case .reconnecting = status { status = .streaming }
+        }
+        handleEvent(parsedEvent, modelContext: modelContext)
+    }
+
     /// Process events from an exec WebSocket stream.
     /// Events whose UUID is in `processedEventUUIDs` are skipped (but system/result
     /// flags are still tracked). New event UUIDs are added to `processedEventUUIDs`
@@ -933,32 +1126,6 @@ final class ChatViewModel {
             if !receivedData {
                 logger.warning("No exec data received in 30s")
             }
-        }
-
-        func handleOrSkip(_ parsedEvent: ClaudeStreamEvent) {
-            if let uuid = parsedEvent.uuid, processedEventUUIDs.contains(uuid) {
-                switch parsedEvent {
-                case .system(let se):
-                    receivedSystemEvent = true
-                    sessionId = se.sessionId
-                    modelName = se.model
-                case .result(let re):
-                    receivedResultEvent = true
-                    sessionId = re.sessionId
-                default: break
-                }
-                return
-            }
-            if let uuid = parsedEvent.uuid {
-                processedEventUUIDs.insert(uuid)
-            }
-            if isReplayingLiveService {
-                applyReplayBuffer()
-                isReplaying = false
-                isReplayingLiveService = false
-                if case .reconnecting = status { status = .streaming }
-            }
-            handleEvent(parsedEvent, modelContext: modelContext)
         }
 
         do {
@@ -980,7 +1147,7 @@ final class ChatViewModel {
 
                     let parsedEvents = await parser.parse(data: data)
                     for parsedEvent in parsedEvents {
-                        handleOrSkip(parsedEvent)
+                        handleOrSkipStreamEvent(parsedEvent, modelContext: modelContext)
                     }
 
                     if receivedResultEvent { break streamLoop }
@@ -1003,7 +1170,7 @@ final class ChatViewModel {
                     logger.info("Exec exit: code=\(code)")
                     let remaining = await parser.flush()
                     for e in remaining {
-                        handleOrSkip(e)
+                        handleOrSkipStreamEvent(e, modelContext: modelContext)
                     }
                     break streamLoop
                 }
@@ -1011,7 +1178,7 @@ final class ChatViewModel {
 
             let remaining = await parser.flush()
             for e in remaining {
-                handleOrSkip(e)
+                handleOrSkipStreamEvent(e, modelContext: modelContext)
             }
             timeoutTask.cancel()
 
@@ -1027,6 +1194,159 @@ final class ChatViewModel {
             if receivedData { return .disconnected }
             status = .error("No response from Claude — try again")
             return .timedOut
+        }
+    }
+
+    /// Process Claude-compatible events delivered over channel bridge SSE.
+    func processChannelStream(
+        events: AsyncThrowingStream<ServerSentEvent, Error>,
+        modelContext: ModelContext
+    ) async -> StreamResult {
+        var receivedData = false
+        var lastPersistTime = Date.distantPast
+
+        let timeoutTask = Task {
+            try await Task.sleep(for: .seconds(45))
+            if !receivedData {
+                logger.warning("No channel data received in 45s")
+            }
+        }
+
+        do {
+            streamLoop: for try await event in events {
+                guard !Task.isCancelled else { break streamLoop }
+
+                if let id = event.id, id != channelLastEventId {
+                    channelLastEventId = id
+                    saveSession(modelContext: modelContext, isComplete: false)
+                }
+
+                guard !event.data.isEmpty else { continue }
+
+                receivedData = true
+                timeoutTask.cancel()
+                if case .connecting = status { status = .streaming }
+                else if case .reconnecting = status { status = .streaming }
+
+                if event.event == "error" {
+                    status = .error(event.data)
+                    return .completed
+                }
+
+                do {
+                    let parsedEvent = try SpritesAPIClient.decodeChannelBridgeEvent(event)
+                    handleOrSkipStreamEvent(parsedEvent, modelContext: modelContext)
+                } catch {
+                    logger.warning("Failed to decode channel event: \(Self.sanitize(error.localizedDescription), privacy: .public)")
+                    continue
+                }
+
+                if receivedResultEvent { break streamLoop }
+
+                let now = Date()
+                if now.timeIntervalSince(lastPersistTime) > 1 {
+                    lastPersistTime = now
+                    persistMessages(modelContext: modelContext)
+                }
+            }
+
+            timeoutTask.cancel()
+            if Task.isCancelled { return .cancelled }
+            if !receivedData { return .timedOut }
+            return receivedResultEvent ? .completed : .disconnected
+        } catch {
+            timeoutTask.cancel()
+            logger.error("Channel stream error: \(Self.sanitize(error.localizedDescription), privacy: .public)")
+            if Task.isCancelled { return .cancelled }
+            if receivedData { return .disconnected }
+            status = .error("No response from the channel bridge — try again")
+            return .timedOut
+        }
+    }
+
+    /// Reattach to a running channel bridge stream after disconnect.
+    private func reattachToChannel(
+        apiClient: SpritesAPIClient,
+        modelContext: ModelContext
+    ) async {
+        status = .reconnecting
+        isReplaying = true
+        isReplayingLiveService = true
+        defer {
+            applyReplayBuffer()
+            isReplaying = false
+            isReplayingLiveService = false
+        }
+
+        hasPlayedFirstTextHaptic = false
+
+        let assistantMessage: ChatMessage
+        let hasPriorEvents = !processedEventUUIDs.isEmpty
+        if let existing = currentAssistantMessage {
+            assistantMessage = existing
+            if !hasPriorEvents { assistantMessage.content = [] }
+        } else if let last = messages.last, last.role == .assistant {
+            assistantMessage = last
+            if !hasPriorEvents { assistantMessage.content = [] }
+            currentAssistantMessage = last
+        } else {
+            assistantMessage = ChatMessage(role: .assistant)
+            messages.append(assistantMessage)
+            currentAssistantMessage = assistantMessage
+        }
+
+        if !hasPriorEvents {
+            toolUseIndex = [:]
+            rebuildToolUseIndex()
+        }
+        receivedSystemEvent = false
+        receivedResultEvent = false
+
+        let sprite: Sprite
+        do {
+            sprite = try await resolveChannelSprite(apiClient: apiClient)
+        } catch AppError.invalidURL {
+            status = .error("This sprite does not expose a channel bridge URL yet")
+            return
+        } catch {
+            logger.error("Channel reattach failed: \(Self.sanitize(error.localizedDescription), privacy: .public)")
+            status = .error("Could not reconnect to the channel bridge")
+            return
+        }
+
+        let streamResult = await processChannelStream(
+            events: apiClient.streamChannelBridgeEvents(
+                sprite: sprite,
+                chatId: chatId.uuidString.lowercased(),
+                lastEventId: channelLastEventId
+            ),
+            modelContext: modelContext
+        )
+
+        if currentAssistantMessage?.id == assistantMessage.id {
+            currentAssistantMessage = nil
+        }
+
+        if case .timedOut = streamResult {
+            previousSessionDisconnected = true
+        } else if case .disconnected = streamResult {
+            previousSessionDisconnected = true
+        }
+
+        saveSession(modelContext: modelContext)
+        if !Task.isCancelled {
+            status = .idle
+        }
+        persistMessages(modelContext: modelContext)
+
+        if let queued = queuedPrompt, !Task.isCancelled {
+            let prompt = buildPrompt(text: queued, attachments: queuedAttachments)
+            queuedPrompt = nil
+            queuedAttachments = []
+            let userMessage = ChatMessage(role: .user, content: [.text(prompt)])
+            messages.append(userMessage)
+            persistMessages(modelContext: modelContext)
+            await executePromptOverSelectedTransport(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
         }
     }
 
@@ -1112,7 +1432,7 @@ final class ChatViewModel {
             let userMessage = ChatMessage(role: .user, content: [.text(prompt)])
             messages.append(userMessage)
             persistMessages(modelContext: modelContext)
-            await executeClaudeCommand(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
+            await executePromptOverSelectedTransport(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
         }
     }
 
@@ -1602,6 +1922,7 @@ final class ChatViewModel {
         guard let chat = fetchChat(modelContext: modelContext) else { return }
         chat.claudeSessionId = sessionId
         chat.execSessionId = execSessionId
+        chat.channelLastEventId = channelLastEventId
         chat.lastUsed = Date()
         if let isComplete { chat.lastSessionComplete = isComplete }
         try? modelContext.save()
@@ -1668,6 +1989,10 @@ final class ChatViewModel {
 
     func setExecSessionId(_ id: String?) {
         execSessionId = id
+    }
+
+    func setChannelLastEventId(_ id: String?) {
+        channelLastEventId = id
     }
     #endif
 

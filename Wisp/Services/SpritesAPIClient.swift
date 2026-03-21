@@ -21,6 +21,50 @@ enum SpriteWakeOutcome: Equatable, CustomStringConvertible {
     }
 }
 
+struct ChannelBridgeMessageRequest: Codable, Sendable, Equatable {
+    let chatId: String
+    let text: String
+    let workingDirectory: String?
+    let sessionId: String?
+    let model: String?
+    let maxTurns: Int?
+    let customInstructions: String?
+    let attachments: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case chatId = "chat_id"
+        case text
+        case workingDirectory = "working_directory"
+        case sessionId = "session_id"
+        case model
+        case maxTurns = "max_turns"
+        case customInstructions = "custom_instructions"
+        case attachments
+    }
+}
+
+struct ChannelBridgeInterruptRequest: Codable, Sendable, Equatable {
+    let chatId: String
+
+    enum CodingKeys: String, CodingKey {
+        case chatId = "chat_id"
+    }
+}
+
+struct ChannelBridgeStatus: Codable, Sendable, Equatable {
+    let isRunning: Bool
+    let isBusy: Bool?
+    let activity: String?
+    let sessionId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case isRunning = "is_running"
+        case isBusy = "is_busy"
+        case activity
+        case sessionId = "session_id"
+    }
+}
+
 @MainActor
 struct SpriteWakeCoordinator {
     let fetchStatus: () async throws -> SpriteStatus
@@ -120,6 +164,7 @@ final class SpritesAPIClient {
     private let decoder = JSONDecoder.apiDecoder()
     private let encoder = JSONEncoder.apiEncoder()
     private let keychain = KeychainService.shared
+    private static let bridgeStatusPollAttempts = 6
 
     // Stored properties so @Observable tracks them for SwiftUI
     private(set) var isAuthenticated: Bool
@@ -231,6 +276,395 @@ final class SpritesAPIClient {
         let _: SpritesListResponse = try await request(method: "GET", path: "/sprites")
     }
 
+    // MARK: - Channel Bridge
+
+    private func channelBridgeSecretDefaultsKey(spriteName: String) -> String {
+        "channelBridgeSecret.\(spriteName)"
+    }
+
+    private func channelBridgeSecret(for spriteName: String) -> String {
+        let defaults = UserDefaults.standard
+        let key = channelBridgeSecretDefaultsKey(spriteName: spriteName)
+        if let existing = defaults.string(forKey: key), !existing.isEmpty {
+            return existing
+        }
+
+        let generated = UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+            + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        defaults.set(generated, forKey: key)
+        return generated
+    }
+
+    private func uploadTextFile(spriteName: String, remotePath: String, contents: String) async throws {
+        _ = try await uploadFile(
+            spriteName: spriteName,
+            remotePath: remotePath,
+            data: Data(contents.utf8)
+        )
+    }
+
+    private func installChannelBridgeIfNeeded(
+        spriteName: String,
+        claudeToken: String?,
+        bridgeSecret: String
+    ) async throws {
+        let (versionOutput, versionCheckSuccess) = await runExec(
+            spriteName: spriteName,
+            command: WispChannelBridge.checkVersionCommand,
+            timeout: 15
+        )
+        let installedVersion = versionOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let needsInstall = !versionCheckSuccess || installedVersion != WispChannelBridge.version
+
+        if needsInstall {
+            try await uploadTextFile(
+                spriteName: spriteName,
+                remotePath: WispChannelBridge.bridgePyPath,
+                contents: WispChannelBridge.bridgeScript
+            )
+            try await uploadTextFile(
+                spriteName: spriteName,
+                remotePath: WispChannelBridge.channelPyPath,
+                contents: WispChannelBridge.channelScript
+            )
+            try await uploadTextFile(
+                spriteName: spriteName,
+                remotePath: WispChannelBridge.versionPath,
+                contents: WispChannelBridge.version
+            )
+
+            let (_, chmodSuccess) = await runExec(
+                spriteName: spriteName,
+                command: WispChannelBridge.chmodCommand,
+                timeout: 15
+            )
+            guard chmodSuccess else {
+                throw AppError.serverError(statusCode: 500, message: "Failed to mark the channel bridge scripts as executable")
+            }
+        }
+
+        try await uploadTextFile(
+            spriteName: spriteName,
+            remotePath: WispChannelBridge.secretPath,
+            contents: bridgeSecret
+        )
+
+        if let claudeToken, !claudeToken.isEmpty {
+            try await uploadTextFile(
+                spriteName: spriteName,
+                remotePath: WispChannelBridge.claudeTokenPath,
+                contents: claudeToken
+            )
+        } else {
+            _ = await runExec(
+                spriteName: spriteName,
+                command: "rm -f ~/.wisp/channel-bridge/claude_oauth_token",
+                timeout: 15
+            )
+        }
+    }
+
+    func ensureChannelBridgeReady(spriteName: String) async throws -> Sprite {
+        _ = try await wakeSpriteIfNeeded(name: spriteName, timeout: 25)
+        let sprite = try await getSprite(name: spriteName)
+        _ = try channelBridgeBaseURL(sprite: sprite)
+
+        let bridgeSecret = channelBridgeSecret(for: spriteName)
+        try await installChannelBridgeIfNeeded(
+            spriteName: spriteName,
+            claudeToken: claudeToken,
+            bridgeSecret: bridgeSecret
+        )
+
+        _ = try await upsertService(
+            spriteName: spriteName,
+            serviceName: WispChannelBridge.serviceName,
+            request: WispChannelBridge.serviceRequest
+        )
+
+        do {
+            try await startService(
+                spriteName: spriteName,
+                serviceName: WispChannelBridge.serviceName
+            )
+        } catch {
+            logger.info("Channel bridge service start returned non-fatal error: \(error.localizedDescription, privacy: .public)")
+        }
+
+        for attempt in 1...Self.bridgeStatusPollAttempts {
+            do {
+                let status = try await getChannelBridgeStatus(sprite: sprite)
+                if status.isRunning {
+                    return sprite
+                }
+            } catch {
+                logger.info("Channel bridge health check attempt \(attempt, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            }
+
+            if attempt < Self.bridgeStatusPollAttempts {
+                try? await Task.sleep(for: .milliseconds(350))
+            }
+        }
+
+        return sprite
+    }
+
+    func channelBridgeBaseURL(sprite: Sprite) throws -> URL {
+        guard let spriteURL = sprite.url, let baseURL = URL(string: spriteURL) else {
+            throw AppError.invalidURL
+        }
+        return baseURL
+    }
+
+    nonisolated static func channelBridgeURL(
+        baseURL: URL,
+        path: String,
+        queryItems: [URLQueryItem] = []
+    ) -> URL {
+        let normalizedPath = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let url = baseURL.appendingPathComponent(normalizedPath)
+
+        guard !queryItems.isEmpty, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+        components.queryItems = queryItems
+        return components.url ?? url
+    }
+
+    nonisolated static func makeChannelBridgeRequest(
+        baseURL: URL,
+        authMode: String,
+        path: String,
+        method: String,
+        bearerToken: String?,
+        bridgeSecret: String?,
+        queryItems: [URLQueryItem] = [],
+        timeout: TimeInterval? = nil
+    ) -> URLRequest {
+        var request = URLRequest(
+            url: channelBridgeURL(baseURL: baseURL, path: path, queryItems: queryItems)
+        )
+        request.httpMethod = method
+        if let timeout {
+            request.timeoutInterval = timeout
+        }
+        if authMode != "public", let bearerToken {
+            request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        }
+        if let bridgeSecret, !bridgeSecret.isEmpty {
+            request.setValue(bridgeSecret, forHTTPHeaderField: "X-Wisp-Bridge-Key")
+        }
+        return request
+    }
+
+    nonisolated static func decodeChannelBridgeEvent(_ event: ServerSentEvent) throws -> ClaudeStreamEvent {
+        try JSONDecoder.apiDecoder().decode(ClaudeStreamEvent.self, from: Data(event.data.utf8))
+    }
+
+    func postChannelBridgeMessage(sprite: Sprite, message: ChannelBridgeMessageRequest) async throws {
+        let authMode = sprite.urlSettings?.auth ?? "sprite"
+        let token = spritesToken
+        if authMode != "public", token == nil {
+            throw AppError.noToken
+        }
+
+        var request = Self.makeChannelBridgeRequest(
+            baseURL: try channelBridgeBaseURL(sprite: sprite),
+            authMode: authMode,
+            path: "message",
+            method: "POST",
+            bearerToken: token,
+            bridgeSecret: channelBridgeSecret(for: sprite.name),
+            timeout: 30
+        )
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(message)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AppError.networkError(URLError(.badServerResponse))
+        }
+
+        let raw = String(data: data, encoding: .utf8) ?? "<binary>"
+        logger.info("POST channel /message → \(httpResponse.statusCode): \(raw)")
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            return
+        case 401:
+            throw AppError.unauthorized
+        case 404:
+            throw AppError.notFound
+        default:
+            throw AppError.serverError(statusCode: httpResponse.statusCode, message: raw)
+        }
+    }
+
+    func interruptChannelBridge(sprite: Sprite, chatId: String) async throws {
+        let authMode = sprite.urlSettings?.auth ?? "sprite"
+        let token = spritesToken
+        if authMode != "public", token == nil {
+            throw AppError.noToken
+        }
+
+        var request = Self.makeChannelBridgeRequest(
+            baseURL: try channelBridgeBaseURL(sprite: sprite),
+            authMode: authMode,
+            path: "interrupt",
+            method: "POST",
+            bearerToken: token,
+            bridgeSecret: channelBridgeSecret(for: sprite.name),
+            timeout: 15
+        )
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(ChannelBridgeInterruptRequest(chatId: chatId))
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AppError.networkError(URLError(.badServerResponse))
+        }
+
+        let raw = String(data: data, encoding: .utf8) ?? "<binary>"
+        logger.info("POST channel /interrupt → \(httpResponse.statusCode): \(raw)")
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            return
+        case 401:
+            throw AppError.unauthorized
+        case 404:
+            throw AppError.notFound
+        default:
+            throw AppError.serverError(statusCode: httpResponse.statusCode, message: raw)
+        }
+    }
+
+    func getChannelBridgeStatus(sprite: Sprite, chatId: String? = nil) async throws -> ChannelBridgeStatus {
+        let authMode = sprite.urlSettings?.auth ?? "sprite"
+        let token = spritesToken
+        if authMode != "public", token == nil {
+            throw AppError.noToken
+        }
+
+        let request = Self.makeChannelBridgeRequest(
+            baseURL: try channelBridgeBaseURL(sprite: sprite),
+            authMode: authMode,
+            path: "status",
+            method: "GET",
+            bearerToken: token,
+            bridgeSecret: channelBridgeSecret(for: sprite.name),
+            queryItems: chatId.map { [URLQueryItem(name: "chat_id", value: $0)] } ?? [],
+            timeout: 15
+        )
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AppError.networkError(URLError(.badServerResponse))
+        }
+
+        let raw = String(data: data, encoding: .utf8) ?? "<binary>"
+        logger.info("GET channel /status → \(httpResponse.statusCode): \(raw)")
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            do {
+                return try decoder.decode(ChannelBridgeStatus.self, from: data)
+            } catch {
+                throw AppError.decodingError(error)
+            }
+        case 401:
+            throw AppError.unauthorized
+        case 404:
+            throw AppError.notFound
+        default:
+            throw AppError.serverError(statusCode: httpResponse.statusCode, message: raw)
+        }
+    }
+
+    func streamChannelBridgeEvents(
+        sprite: Sprite,
+        chatId: String? = nil,
+        lastEventId: String? = nil,
+        timeout: TimeInterval = 120
+    ) -> AsyncThrowingStream<ServerSentEvent, Error> {
+        let authMode = sprite.urlSettings?.auth ?? "sprite"
+        let token = spritesToken
+
+        if authMode != "public", token == nil {
+            return AsyncThrowingStream { continuation in
+                continuation.finish(throwing: AppError.noToken)
+            }
+        }
+
+        let baseURL: URL
+        do {
+            baseURL = try channelBridgeBaseURL(sprite: sprite)
+        } catch {
+            return AsyncThrowingStream { continuation in
+                continuation.finish(throwing: error)
+            }
+        }
+
+        var request = Self.makeChannelBridgeRequest(
+            baseURL: baseURL,
+            authMode: authMode,
+            path: "events",
+            method: "GET",
+            bearerToken: token,
+            bridgeSecret: channelBridgeSecret(for: sprite.name),
+            queryItems: chatId.map { [URLQueryItem(name: "chat_id", value: $0)] } ?? [],
+            timeout: timeout
+        )
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        if let lastEventId {
+            request.setValue(lastEventId, forHTTPHeaderField: "Last-Event-ID")
+        }
+
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+
+                    guard let httpResponse = response as? HTTPURLResponse else {
+                        continuation.finish(throwing: AppError.networkError(URLError(.badServerResponse)))
+                        return
+                    }
+
+                    guard (200...299).contains(httpResponse.statusCode) else {
+                        switch httpResponse.statusCode {
+                        case 401: continuation.finish(throwing: AppError.unauthorized)
+                        case 404: continuation.finish(throwing: AppError.notFound)
+                        default: continuation.finish(throwing: AppError.serverError(statusCode: httpResponse.statusCode, message: nil))
+                        }
+                        return
+                    }
+
+                    let parser = ServerSentEventParser()
+                    for try await line in bytes.lines {
+                        if let event = await parser.parse(line: line) {
+                            continuation.yield(event)
+                        }
+                    }
+                    if let trailingEvent = await parser.finish() {
+                        continuation.yield(trailingEvent)
+                    }
+                    continuation.finish()
+                } catch {
+                    logger.error("streamChannelBridgeEvents error: \(error.localizedDescription, privacy: .public)")
+                    continuation.finish(throwing: error)
+                }
+            }
+
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
+        }
+    }
+
     // MARK: - Exec WebSocket
 
     func createExecSession(spriteName: String, command: String, env: [String: String] = [:], maxRunAfterDisconnect: Int? = nil) -> ExecSession {
@@ -301,6 +735,25 @@ final class SpritesAPIClient {
 
     func listServices(spriteName: String) async throws -> [ServiceInfo] {
         return try await request(method: "GET", path: "/sprites/\(spriteName)/services")
+    }
+
+    func upsertService(
+        spriteName: String,
+        serviceName: String,
+        request serviceRequest: ServiceRequest
+    ) async throws -> ServiceInfo {
+        try await request(
+            method: "PUT",
+            path: "/sprites/\(spriteName)/services/\(serviceName)",
+            body: serviceRequest
+        )
+    }
+
+    func startService(spriteName: String, serviceName: String) async throws {
+        try await streamingRequest(
+            method: "POST",
+            path: "/sprites/\(spriteName)/services/\(serviceName)/start"
+        )
     }
 
     /// Stream logs from a service (used by the Services UI to view non-Claude service output).

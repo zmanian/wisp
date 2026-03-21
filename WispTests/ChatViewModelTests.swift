@@ -32,6 +32,31 @@ struct ChatViewModelTests {
         }
     }
 
+    private func makeSSEStream(_ events: [ServerSentEvent]) -> AsyncThrowingStream<ServerSentEvent, Error> {
+        AsyncThrowingStream { continuation in
+            for event in events { continuation.yield(event) }
+            continuation.finish()
+        }
+    }
+
+    private func withTransportMode<Result>(
+        _ mode: ClaudeChatTransportMode,
+        perform work: () throws -> Result
+    ) rethrows -> Result {
+        let key = ClaudeChatTransportMode.defaultsKey
+        let defaults = UserDefaults.standard
+        let previous = defaults.string(forKey: key)
+        defaults.set(mode.rawValue, forKey: key)
+        defer {
+            if let previous {
+                defaults.set(previous, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+        return try work()
+    }
+
     // MARK: - handleEvent: system
 
     @Test func handleEvent_systemSetsModelName() throws {
@@ -586,6 +611,46 @@ struct ChatViewModelTests {
         #expect(vm.execSessionId == "exec-abc-123")
     }
 
+    // MARK: - processChannelStream
+
+    @Test func processChannelStream_tracksLastEventIdAndCompletes() async throws {
+        let ctx = try makeModelContext()
+        let (vm, chat) = makeChatViewModel(modelContext: ctx)
+
+        let assistantMsg = ChatMessage(role: .assistant)
+        vm.messages.append(assistantMsg)
+        vm.setCurrentAssistantMessage(assistantMsg)
+
+        let stream = makeSSEStream([
+            ServerSentEvent(
+                event: "system",
+                id: "evt-1",
+                data: #"{"type":"system","session_id":"s1","model":"claude-sonnet-4-20250514"}"#,
+                retry: nil
+            ),
+            ServerSentEvent(
+                event: "assistant",
+                id: "evt-2",
+                data: #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hello from channel"}]}}"#,
+                retry: nil
+            ),
+            ServerSentEvent(
+                event: "result",
+                id: "evt-3",
+                data: #"{"type":"result","session_id":"s1","subtype":"success"}"#,
+                retry: nil
+            ),
+        ])
+
+        let result = await vm.processChannelStream(events: stream, modelContext: ctx)
+
+        #expect(result == .completed)
+        #expect(vm.channelLastEventId == "evt-3")
+        #expect(chat.channelLastEventId == "evt-3")
+        #expect(vm.sessionId == "s1")
+        #expect(assistantMsg.textContent == "Hello from channel")
+    }
+
     // MARK: - reattachToExec
 
     @Test func reattachToExec_setsLastSessionCompleteWhenResultReceived() async throws {
@@ -639,6 +704,20 @@ struct ChatViewModelTests {
         #expect(vm.streamTask != nil)
     }
 
+    @Test func reconnectIfNeeded_withChannelModeAndLastEventId_startsReattachTask() throws {
+        try withTransportMode(.channels) {
+            let ctx = try makeModelContext()
+            let (vm, _) = makeChatViewModel(modelContext: ctx)
+
+            vm.messages = [ChatMessage(role: .assistant, content: [.text("partial")])]
+            vm.setChannelLastEventId("evt-3")
+
+            vm.reconnectIfNeeded(apiClient: SpritesAPIClient(), modelContext: ctx)
+
+            #expect(vm.streamTask != nil)
+        }
+    }
+
     // MARK: - UUID persistence
 
     @Test func persistMessages_savesUUIDsToChat() throws {
@@ -674,6 +753,17 @@ struct ChatViewModelTests {
         vm.loadSession(apiClient: SpritesAPIClient(), modelContext: ctx)
 
         #expect(vm.processedEventUUIDs == ["uuid-x", "uuid-y"])
+    }
+
+    @Test func loadSession_restoresChannelLastEventId() throws {
+        let ctx = try makeModelContext()
+        let (vm, chat) = makeChatViewModel(modelContext: ctx)
+
+        chat.channelLastEventId = "evt-restored"
+
+        vm.loadSession(apiClient: SpritesAPIClient(), modelContext: ctx)
+
+        #expect(vm.channelLastEventId == "evt-restored")
     }
 
     @Test func loadSession_setsEmptyUUIDsWhenNoneStored() throws {

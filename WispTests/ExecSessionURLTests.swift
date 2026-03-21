@@ -58,6 +58,70 @@ struct ExecSessionURLTests {
         #expect(cmdCount == 3) // bash, -c, and the command
     }
 
+    // MARK: - Channel bridge URL helpers
+
+    @Test func channelBridgeURLAppendsPathToSpriteURL() throws {
+        let baseURL = try #require(URL(string: "https://sprite.example.com"))
+        let url = SpritesAPIClient.channelBridgeURL(baseURL: baseURL, path: "events")
+        #expect(url.absoluteString == "https://sprite.example.com/events")
+    }
+
+    @Test func channelBridgeURLPreservesExistingBasePath() throws {
+        let baseURL = try #require(URL(string: "https://sprite.example.com/wisp"))
+        let url = SpritesAPIClient.channelBridgeURL(baseURL: baseURL, path: "/status/")
+        #expect(url.absoluteString == "https://sprite.example.com/wisp/status")
+    }
+
+    @Test func channelBridgeRequestUsesBearerForSpriteAuth() throws {
+        let baseURL = try #require(URL(string: "https://sprite.example.com"))
+        let request = SpritesAPIClient.makeChannelBridgeRequest(
+            baseURL: baseURL,
+            authMode: "sprite",
+            path: "message",
+            method: "POST",
+            bearerToken: "secret-token",
+            bridgeSecret: "bridge-secret",
+            timeout: 30
+        )
+
+        #expect(request.url?.absoluteString == "https://sprite.example.com/message")
+        #expect(request.httpMethod == "POST")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer secret-token")
+        #expect(request.value(forHTTPHeaderField: "X-Wisp-Bridge-Key") == "bridge-secret")
+        #expect(request.timeoutInterval == 30)
+    }
+
+    @Test func channelBridgeRequestSkipsBearerForPublicAuth() throws {
+        let baseURL = try #require(URL(string: "https://sprite.example.com"))
+        let request = SpritesAPIClient.makeChannelBridgeRequest(
+            baseURL: baseURL,
+            authMode: "public",
+            path: "events",
+            method: "GET",
+            bearerToken: "secret-token",
+            bridgeSecret: "bridge-secret"
+        )
+
+        #expect(request.url?.absoluteString == "https://sprite.example.com/events")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+        #expect(request.value(forHTTPHeaderField: "X-Wisp-Bridge-Key") == "bridge-secret")
+    }
+
+    @Test func channelBridgeRequestIncludesChatQueryItem() throws {
+        let baseURL = try #require(URL(string: "https://sprite.example.com/wisp"))
+        let request = SpritesAPIClient.makeChannelBridgeRequest(
+            baseURL: baseURL,
+            authMode: "sprite",
+            path: "events",
+            method: "GET",
+            bearerToken: "secret-token",
+            bridgeSecret: "bridge-secret",
+            queryItems: [URLQueryItem(name: "chat_id", value: "chat-123")]
+        )
+
+        #expect(request.url?.absoluteString == "https://sprite.example.com/wisp/events?chat_id=chat-123")
+    }
+
     // MARK: - Helpers
 
     /// Build an exec WebSocket URL the same way SpritesAPIClient does.

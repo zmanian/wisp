@@ -5,6 +5,20 @@ import Foundation
 @MainActor
 @Suite("SideChatViewModel")
 struct SideChatViewModelTests {
+    private func makeSSEStream(_ events: [ServerSentEvent]) -> AsyncThrowingStream<ServerSentEvent, Error> {
+        AsyncThrowingStream { continuation in
+            for event in events { continuation.yield(event) }
+            continuation.finish()
+        }
+    }
+
+    private func makeSSEEvent<T: Encodable>(
+        _ payload: T,
+        id: String
+    ) throws -> ServerSentEvent {
+        let data = try JSONEncoder.apiEncoder().encode(payload)
+        return ServerSentEvent(event: nil, id: id, data: String(decoding: data, as: UTF8.self), retry: nil)
+    }
 
     private func makeViewModel() -> SideChatViewModel {
         SideChatViewModel(
@@ -103,6 +117,61 @@ struct SideChatViewModelTests {
     @Test func handle_successResult_doesNotSetError() {
         let vm = makeViewModel()
         vm.handle(resultEvent(isError: false))
+        #expect(vm.error == nil)
+    }
+
+    @Test func handle_systemEvent_updatesSessionId() {
+        let vm = makeViewModel()
+        vm.handle(.system(ClaudeSystemEvent(
+            type: "system",
+            sessionId: "sess-new",
+            model: "claude-sonnet",
+            tools: nil,
+            cwd: nil
+        )))
+        #expect(vm.sessionId == "sess-new")
+    }
+
+    @Test func processChannelStream_updatesResponseSessionAndLastEventId() async throws {
+        let vm = makeViewModel()
+
+        let stream = makeSSEStream([
+            try makeSSEEvent(
+                ClaudeSystemEvent(
+                    type: "system",
+                    sessionId: "sess-abc",
+                    model: "claude-sonnet",
+                    tools: nil,
+                    cwd: nil
+                ),
+                id: "evt-1"
+            ),
+            try makeSSEEvent(
+                ClaudeAssistantEvent(
+                    type: "assistant",
+                    message: ClaudeAssistantMessage(role: "assistant", content: [.text("Hello from side chat")])
+                ),
+                id: "evt-2"
+            ),
+            try makeSSEEvent(
+                ClaudeResultEvent(
+                    type: "result",
+                    subtype: "success",
+                    sessionId: "sess-abc",
+                    isError: false,
+                    durationMs: 100,
+                    numTurns: 1,
+                    result: nil
+                ),
+                id: "evt-3"
+            ),
+        ])
+
+        await vm.processChannelStream(events: stream)
+
+        #expect(vm.sessionId == "sess-abc")
+        #expect(vm.channelLastEventId == "evt-3")
+        #expect(vm.response == "Hello from side chat")
         #expect(vm.error == nil)
     }
 }

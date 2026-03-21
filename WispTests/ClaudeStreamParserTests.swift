@@ -132,4 +132,72 @@ struct ClaudeStreamParserTests {
         let events = await parser.flush()
         #expect(events.isEmpty)
     }
+
+    @Test func serverSentEventParserCollectsNamedEvent() async {
+        let parser = ServerSentEventParser()
+
+        #expect(await parser.parse(line: "event: assistant") == nil)
+        #expect(await parser.parse(line: "id: evt-1") == nil)
+        #expect(await parser.parse(line: #"data: {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hello"}]}}"#) == nil)
+
+        let event = await parser.parse(line: "")
+        #expect(event?.event == "assistant")
+        #expect(event?.id == "evt-1")
+        #expect(event?.data.contains(#""type":"assistant""#) == true)
+    }
+
+    @Test func serverSentEventParserJoinsMultilineData() async {
+        let parser = ServerSentEventParser()
+
+        #expect(await parser.parse(line: "event: reply") == nil)
+        #expect(await parser.parse(line: "data: line one") == nil)
+        #expect(await parser.parse(line: "data: line two") == nil)
+        #expect(await parser.parse(line: "retry: 5000") == nil)
+
+        let event = await parser.parse(line: "")
+        #expect(event?.event == "reply")
+        #expect(event?.data == "line one\nline two")
+        #expect(event?.retry == 5000)
+    }
+
+    @Test func serverSentEventParserIgnoresComments() async {
+        let parser = ServerSentEventParser()
+
+        #expect(await parser.parse(line: ": keep-alive") == nil)
+        #expect(await parser.parse(line: "data: ok") == nil)
+
+        let event = await parser.parse(line: "")
+        #expect(event?.data == "ok")
+    }
+
+    @Test func serverSentEventParserFinishFlushesTrailingEvent() async {
+        let parser = ServerSentEventParser()
+
+        #expect(await parser.parse(line: "event: result") == nil)
+        #expect(await parser.parse(line: #"data: {"type":"result","session_id":"sess-1","subtype":"success"}"#) == nil)
+
+        let event = await parser.finish()
+        #expect(event?.event == "result")
+        #expect(event?.data.contains(#""subtype":"success""#) == true)
+    }
+
+    @Test func decodeChannelBridgeEventUsesClaudeStreamDecoder() throws {
+        let event = ServerSentEvent(
+            event: "assistant",
+            id: "evt-2",
+            data: #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hi from SSE"}]}}"#,
+            retry: nil
+        )
+
+        let decoded = try SpritesAPIClient.decodeChannelBridgeEvent(event)
+        if case .assistant(let assistant) = decoded {
+            if case .text(let text) = assistant.message.content.first {
+                #expect(text == "Hi from SSE")
+            } else {
+                Issue.record("Expected assistant text content")
+            }
+        } else {
+            Issue.record("Expected assistant event")
+        }
+    }
 }

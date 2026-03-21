@@ -10,6 +10,7 @@ final class SpriteChat {
     var currentServiceName: String?
     var execSessionId: String?
     var claudeSessionId: String?
+    var channelLastEventId: String?
     var workingDirectory: String
     var createdAt: Date
     var lastUsed: Date

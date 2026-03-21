@@ -1,7 +1,7 @@
 import Foundation
 
 enum ClaudeQuestionTool {
-    static let version = "3"
+    static let version = "7"
 
     // Full Python MCP server source — human-readable
     static let serverScript = """
@@ -173,4 +173,930 @@ enum ClaudeQuestionTool {
     static func responseFilePath(for sessionId: String) -> String {
         "/tmp/.wisp_ask_response_\(sanitizedSessionId(sessionId)).json"
     }
+}
+
+enum WispChannelBridge {
+    static let version = "3"
+    static let serviceName = "wisp-channel-bridge"
+    static let httpPort = 39281
+
+    static let basePath = "/home/sprite/.wisp/channel-bridge"
+    static let bridgePyPath = "\(basePath)/bridge.py"
+    static let channelPyPath = "\(basePath)/channel.py"
+    static let versionPath = "\(basePath)/version"
+    static let secretPath = "\(basePath)/bridge_secret"
+    static let claudeTokenPath = "\(basePath)/claude_oauth_token"
+
+    static let checkVersionCommand = "cat ~/.wisp/channel-bridge/version 2>/dev/null || echo ''"
+    static let chmodCommand = "chmod +x ~/.wisp/channel-bridge/bridge.py ~/.wisp/channel-bridge/channel.py"
+
+    static let serviceRequest = ServiceRequest(
+        cmd: "python3",
+        args: [bridgePyPath],
+        needs: nil,
+        httpPort: httpPort
+    )
+
+    static let bridgeScript = #"""
+    #!/usr/bin/env python3
+    """Wisp channel bridge.
+
+    Runs as a single sprite service. Each Wisp chat gets its own persistent Claude
+    process and helper channel server. HTTP is the app-facing API; Claude session
+    JSONL files are the source of truth for outbound events.
+    """
+
+    from __future__ import annotations
+
+    import hashlib
+    import json
+    import os
+    import pty
+    import re
+    import signal
+    import subprocess
+    import sys
+    import threading
+    import time
+    import uuid
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from pathlib import Path
+    from urllib.parse import parse_qs, urlparse
+
+    PORT = 39281
+    BASE_DIR = Path.home() / ".wisp" / "channel-bridge"
+    CHATS_DIR = BASE_DIR / "chats"
+    SECRET_PATH = BASE_DIR / "bridge_secret"
+    CLAUDE_TOKEN_PATH = BASE_DIR / "claude_oauth_token"
+    HELPER_PATH = BASE_DIR / "channel.py"
+    SSE_POLL_INTERVAL = 0.25
+    SSE_HEARTBEAT_SECONDS = 10
+    ANSI_CSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+    ANSI_OSC_RE = re.compile(r"\x1b\].*?(?:\x07|\x1b\\)")
+    ANSI_SINGLE_RE = re.compile(r"\x1b[@-Z\\-_]")
+
+    STATE_LOCK = threading.Lock()
+
+
+    class BridgeError(Exception):
+        def __init__(self, status: int, message: str):
+            super().__init__(message)
+            self.status = status
+            self.message = message
+
+
+    def log(message: str) -> None:
+        print(f"[wisp-channel-bridge] {message}", file=sys.stderr, flush=True)
+
+
+    def ensure_base_dirs() -> None:
+        CHATS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+    def safe_chat_dir(chat_id: str) -> Path:
+        digest = hashlib.sha1(chat_id.encode("utf-8")).hexdigest()
+        return CHATS_DIR / digest
+
+
+    def channel_server_name(chat_id: str) -> str:
+        digest = hashlib.sha1(chat_id.encode("utf-8")).hexdigest()[:16]
+        return f"wisp-{digest}"
+
+
+    def state_path(chat_dir: Path) -> Path:
+        return chat_dir / "state.json"
+
+
+    def events_path(chat_dir: Path) -> Path:
+        return chat_dir / "events.jsonl"
+
+
+    def inbox_dir(chat_dir: Path) -> Path:
+        return chat_dir / "inbox"
+
+
+    def claude_settings_path() -> Path:
+        return Path.home() / ".claude.json"
+
+
+    def stdout_log_path(chat_dir: Path) -> Path:
+        return chat_dir / "claude.stdout.log"
+
+
+    def stderr_log_path(chat_dir: Path) -> Path:
+        return chat_dir / "claude.stderr.log"
+
+
+    def ensure_chat_dirs(chat_dir: Path) -> None:
+        chat_dir.mkdir(parents=True, exist_ok=True)
+        inbox_dir(chat_dir).mkdir(parents=True, exist_ok=True)
+
+
+    def atomic_write_text(path: Path, value: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(value, encoding="utf-8")
+        tmp.replace(path)
+
+
+    def atomic_write_json(path: Path, value: dict) -> None:
+        atomic_write_text(path, json.dumps(value, sort_keys=True))
+
+
+    def read_json(path: Path, default: dict | None = None) -> dict:
+        if not path.exists():
+            return dict(default or {})
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except Exception:
+            return dict(default or {})
+
+
+    def ensure_claude_project_config(
+        working_directory: str,
+        chat_dir: Path,
+        chat_id: str,
+        server_name: str,
+    ) -> None:
+        settings_path = claude_settings_path()
+        settings = read_json(settings_path, default={})
+        projects = settings.setdefault("projects", {})
+        project_state = projects.setdefault(working_directory, {})
+        project_state["hasTrustDialogAccepted"] = True
+        mcp_servers = project_state.setdefault("mcpServers", {})
+        mcp_servers[server_name] = {
+            "command": "python3",
+            "args": [str(HELPER_PATH)],
+            "env": {
+                "WISP_CHAT_DIR": str(chat_dir),
+                "WISP_CHAT_ID": chat_id,
+            },
+        }
+        atomic_write_text(settings_path, json.dumps(settings, sort_keys=True))
+
+
+    def strip_terminal_control(value: str) -> str:
+        value = ANSI_OSC_RE.sub("", value)
+        value = ANSI_CSI_RE.sub("", value)
+        value = ANSI_SINGLE_RE.sub("", value)
+        return value.replace("\r", "")
+
+
+    def pump_pty_output(master_fd: int, chat_id: str, stdout_handle) -> None:
+        accepted_trust = False
+        accepted_dev_channels = False
+        accepted_bypass = False
+        prompt_buffer = ""
+
+        try:
+            while True:
+                try:
+                    chunk = os.read(master_fd, 4096)
+                except OSError:
+                    break
+
+                if not chunk:
+                    break
+
+                stdout_handle.write(chunk)
+                stdout_handle.flush()
+
+                prompt_buffer = strip_terminal_control(
+                    (prompt_buffer + chunk.decode("utf-8", errors="ignore"))[-8000:]
+                )
+                compact_buffer = re.sub(r"\s+", "", prompt_buffer)
+
+                if (
+                    not accepted_trust
+                    and "Quicksafetycheck" in compact_buffer
+                    and "Yes,Itrustthisfolder" in compact_buffer
+                ):
+                    os.write(master_fd, b"\r")
+                    accepted_trust = True
+                    log(f"Accepted workspace trust prompt for chat {chat_id}")
+
+                if (
+                    not accepted_dev_channels
+                    and "Loadingdevelopmentchannels" in compact_buffer
+                    and "Iamusingthisforlocaldevelopment" in compact_buffer
+                ):
+                    os.write(master_fd, b"\r")
+                    accepted_dev_channels = True
+                    log(f"Accepted development channels prompt for chat {chat_id}")
+
+                if (
+                    not accepted_bypass
+                    and "BypassPermissionsmode" in compact_buffer
+                    and "Yes,Iaccept" in compact_buffer
+                ):
+                    os.write(master_fd, b"\r")
+                    accepted_bypass = True
+                    log(f"Accepted bypass permissions prompt for chat {chat_id}")
+        finally:
+            try:
+                os.close(master_fd)
+            except OSError:
+                pass
+            stdout_handle.close()
+
+
+    def load_state(chat_dir: Path, chat_id: str) -> dict:
+        return {
+            "chat_id": chat_id,
+            "session_id": None,
+            "pid": None,
+            "working_directory": None,
+            "model": None,
+            "custom_instructions": None,
+            "busy": False,
+            "activity": None,
+            "next_event_number": 1,
+            "session_offset": 0,
+            "last_synced_at": 0,
+            **read_json(state_path(chat_dir)),
+        }
+
+
+    def save_state(chat_dir: Path, state: dict) -> None:
+        atomic_write_json(state_path(chat_dir), state)
+
+
+    def read_secret() -> str:
+        try:
+            return SECRET_PATH.read_text(encoding="utf-8").strip()
+        except FileNotFoundError as exc:
+            raise BridgeError(503, "Bridge secret not installed") from exc
+
+
+    def parse_json_body(handler: BaseHTTPRequestHandler) -> dict:
+        content_length = int(handler.headers.get("Content-Length", "0"))
+        raw = handler.rfile.read(content_length) if content_length > 0 else b"{}"
+        try:
+            return json.loads(raw.decode("utf-8"))
+        except Exception as exc:
+            raise BridgeError(400, "Invalid JSON body") from exc
+
+
+    def require_secret(handler: BaseHTTPRequestHandler) -> None:
+        expected = read_secret()
+        actual = handler.headers.get("X-Wisp-Bridge-Key", "")
+        if not expected or actual != expected:
+            raise BridgeError(401, "Unauthorized")
+
+
+    def send_json(handler: BaseHTTPRequestHandler, status: int, body: dict) -> None:
+        data = json.dumps(body).encode("utf-8")
+        handler.send_response(status)
+        handler.send_header("Content-Type", "application/json")
+        handler.send_header("Content-Length", str(len(data)))
+        handler.end_headers()
+        handler.wfile.write(data)
+
+
+    def parse_last_event_id(value: str | None) -> int:
+        if not value:
+            return 0
+        raw = value.strip()
+        if raw.startswith("evt-"):
+            raw = raw[4:]
+        try:
+            return int(raw)
+        except ValueError:
+            return 0
+
+
+    def pid_is_alive(pid: int | None) -> bool:
+        if not pid:
+            return False
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            return False
+        return True
+
+
+    def event_record(event_id: str, event_name: str, payload: dict) -> dict:
+        return {"id": event_id, "event": event_name, "data": payload}
+
+
+    def append_event(chat_dir: Path, state: dict, event_name: str, payload: dict) -> dict:
+        event_number = int(state.get("next_event_number", 1))
+        state["next_event_number"] = event_number + 1
+        record = event_record(f"evt-{event_number}", event_name, payload)
+        with events_path(chat_dir).open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, sort_keys=True) + "\n")
+        return record
+
+
+    def list_events_after(chat_dir: Path, after_event_number: int) -> list[dict]:
+        path = events_path(chat_dir)
+        if not path.exists():
+            return []
+        records: list[dict] = []
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if parse_last_event_id(record.get("id")) > after_event_number:
+                    records.append(record)
+        return records
+
+
+    def encoded_project_dir(working_directory: str) -> str:
+        return working_directory.replace("/", "-")
+
+
+    def session_file_path(state: dict) -> Path | None:
+        working_directory = state.get("working_directory")
+        session_id = state.get("session_id")
+        if not working_directory or not session_id:
+            return None
+        return Path.home() / ".claude" / "projects" / encoded_project_dir(working_directory) / f"{session_id}.jsonl"
+
+
+    def ensure_session_id(state: dict, requested_chat_id: str) -> str:
+        existing = state.get("session_id")
+        if isinstance(existing, str) and existing:
+            return existing
+        try:
+            uuid.UUID(requested_chat_id)
+            session_id = requested_chat_id
+        except ValueError:
+            session_id = str(uuid.uuid4())
+        state["session_id"] = session_id
+        return session_id
+
+
+    def start_claude_process(chat_dir: Path, state: dict, request: dict) -> None:
+        working_directory = (
+            request.get("working_directory")
+            or state.get("working_directory")
+            or "/home/sprite/project"
+        )
+        Path(working_directory).mkdir(parents=True, exist_ok=True)
+        state["working_directory"] = working_directory
+
+        session_id = state.get("session_id")
+        parent_session_id = request.get("session_id")
+
+        resume_args: list[str]
+        if session_id:
+            resume_args = ["--resume", session_id]
+        elif parent_session_id:
+            session_id = str(uuid.uuid4())
+            state["session_id"] = session_id
+            resume_args = ["--resume", parent_session_id, "--fork-session", "--session-id", session_id]
+        else:
+            session_id = ensure_session_id(state, request["chat_id"])
+            resume_args = ["--session-id", session_id]
+
+        model = request.get("model") or state.get("model")
+        custom_instructions = request.get("custom_instructions") or state.get("custom_instructions")
+
+        env = os.environ.copy()
+        env["NO_DNA"] = "1"
+        try:
+            claude_token = CLAUDE_TOKEN_PATH.read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            claude_token = ""
+
+        if claude_token:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = claude_token
+        else:
+            log(f"No uploaded Claude token for chat {request['chat_id']}; using sprite-local Claude auth")
+
+        server_name = channel_server_name(request["chat_id"])
+        ensure_claude_project_config(working_directory, chat_dir, request["chat_id"], server_name)
+
+        command = [
+            "claude",
+            "--dangerously-skip-permissions",
+            "--dangerously-load-development-channels",
+            f"server:{server_name}",
+            "--add-dir",
+            working_directory,
+            *resume_args,
+        ]
+
+        if model:
+            command.extend(["--model", model])
+        if custom_instructions:
+            command.extend(["--append-system-prompt", custom_instructions])
+
+        stdout_handle = stdout_log_path(chat_dir).open("ab")
+        stderr_log_path(chat_dir).touch(exist_ok=True)
+
+        master_fd, slave_fd = pty.openpty()
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=working_directory,
+                env=env,
+                stdin=slave_fd,
+                stdout=slave_fd,
+                stderr=slave_fd,
+                preexec_fn=os.setsid,
+                close_fds=True,
+            )
+        finally:
+            os.close(slave_fd)
+
+        threading.Thread(
+            target=pump_pty_output,
+            args=(master_fd, request["chat_id"], stdout_handle),
+            daemon=True,
+        ).start()
+
+        state["pid"] = process.pid
+        state["model"] = model
+        state["custom_instructions"] = custom_instructions
+        state["last_synced_at"] = time.time()
+        log(f"Started Claude for chat {request['chat_id']} pid={process.pid}")
+
+
+    def sync_session_events(chat_dir: Path, state: dict) -> dict:
+        path = session_file_path(state)
+        if path is None or not path.exists():
+            if state.get("busy") and not pid_is_alive(state.get("pid")) and state.get("session_id"):
+                append_event(
+                    chat_dir,
+                    state,
+                    "result",
+                    {
+                        "type": "result",
+                        "subtype": "error",
+                        "session_id": state["session_id"],
+                        "is_error": True,
+                        "result": "Claude process exited before finishing the turn",
+                        "uuid": str(uuid.uuid4()),
+                    },
+                )
+                state["busy"] = False
+                state["activity"] = None
+            save_state(chat_dir, state)
+            return state
+
+        offset = int(state.get("session_offset", 0))
+        with path.open("rb") as handle:
+            handle.seek(offset)
+            chunk = handle.read()
+            state["session_offset"] = handle.tell()
+
+        if not chunk:
+            save_state(chat_dir, state)
+            return state
+
+        for raw_line in chunk.decode("utf-8", errors="ignore").splitlines():
+            raw_line = raw_line.strip()
+            if not raw_line:
+                continue
+            try:
+                payload = json.loads(raw_line)
+            except json.JSONDecodeError:
+                continue
+
+            line_type = payload.get("type")
+
+            if line_type == "system":
+                session_id = payload.get("sessionId") or state.get("session_id")
+                if session_id:
+                    state["session_id"] = session_id
+                if payload.get("cwd"):
+                    state["working_directory"] = payload.get("cwd")
+                append_event(
+                    chat_dir,
+                    state,
+                    "system",
+                    {
+                        "type": "system",
+                        "session_id": state.get("session_id") or "",
+                        "model": payload.get("model"),
+                        "tools": payload.get("tools"),
+                        "cwd": payload.get("cwd"),
+                        "uuid": payload.get("uuid"),
+                    },
+                )
+                continue
+
+            if line_type == "assistant":
+                append_event(
+                    chat_dir,
+                    state,
+                    "assistant",
+                    {
+                        "type": "assistant",
+                        "message": payload.get("message"),
+                        "uuid": payload.get("uuid"),
+                    },
+                )
+                message = payload.get("message") or {}
+                stop_reason = message.get("stop_reason") if isinstance(message, dict) else None
+                if stop_reason and stop_reason != "tool_use" and state.get("session_id"):
+                    append_event(
+                        chat_dir,
+                        state,
+                        "result",
+                        {
+                            "type": "result",
+                            "subtype": "success",
+                            "session_id": state["session_id"],
+                            "is_error": False,
+                            "uuid": str(uuid.uuid4()),
+                        },
+                    )
+                    state["busy"] = False
+                    state["activity"] = None
+                continue
+
+            if line_type == "user":
+                message = payload.get("message") or {}
+                content = message.get("content") if isinstance(message, dict) else None
+                if isinstance(content, list) and any(
+                    isinstance(block, dict) and block.get("type") == "tool_result"
+                    for block in content
+                ):
+                    append_event(
+                        chat_dir,
+                        state,
+                        "user",
+                        {
+                            "type": "user",
+                            "message": {
+                                "role": "user",
+                                "content": content,
+                            },
+                            "uuid": payload.get("uuid"),
+                        },
+                    )
+
+        save_state(chat_dir, state)
+        return state
+
+
+    def enqueue_message(request: dict) -> dict:
+        chat_id = request["chat_id"]
+        chat_dir = safe_chat_dir(chat_id)
+        ensure_chat_dirs(chat_dir)
+        state = load_state(chat_dir, chat_id)
+        state = sync_session_events(chat_dir, state)
+
+        if state.get("busy"):
+            raise BridgeError(409, "Chat is already busy")
+
+        inbox_message = {
+            "id": f"msg-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}",
+            "chat_id": chat_id,
+            "text": request["text"],
+            "working_directory": request.get("working_directory"),
+            "attachments": request.get("attachments") or [],
+            "timestamp": time.time(),
+        }
+
+        message_path = inbox_dir(chat_dir) / f"{int(time.time() * 1000)}-{uuid.uuid4().hex}.json"
+        atomic_write_json(message_path, inbox_message)
+
+        if not pid_is_alive(state.get("pid")):
+            start_claude_process(chat_dir, state, request)
+
+        preview = request["text"].strip().replace("\n", " ")
+        if len(preview) > 120:
+            preview = preview[:117] + "..."
+        state["busy"] = True
+        state["activity"] = preview or "Waiting for Claude"
+        save_state(chat_dir, state)
+        return state
+
+
+    def interrupt_chat(chat_id: str) -> dict:
+        chat_dir = safe_chat_dir(chat_id)
+        ensure_chat_dirs(chat_dir)
+        state = load_state(chat_dir, chat_id)
+        state = sync_session_events(chat_dir, state)
+
+        pid = state.get("pid")
+        if pid_is_alive(pid):
+            try:
+                os.killpg(os.getpgid(pid), signal.SIGINT)
+            except OSError:
+                pass
+
+        if state.get("session_id"):
+            append_event(
+                chat_dir,
+                state,
+                "result",
+                {
+                    "type": "result",
+                    "subtype": "interrupted",
+                    "session_id": state["session_id"],
+                    "is_error": False,
+                    "uuid": str(uuid.uuid4()),
+                },
+            )
+
+        state["busy"] = False
+        state["activity"] = None
+        save_state(chat_dir, state)
+        return state
+
+
+    def chat_status(chat_id: str | None) -> dict:
+        if not chat_id:
+            return {
+                "is_running": True,
+                "is_busy": False,
+                "activity": "ready",
+                "session_id": None,
+            }
+
+        chat_dir = safe_chat_dir(chat_id)
+        ensure_chat_dirs(chat_dir)
+        state = load_state(chat_dir, chat_id)
+        state = sync_session_events(chat_dir, state)
+        return {
+            "is_running": pid_is_alive(state.get("pid")),
+            "is_busy": bool(state.get("busy")),
+            "activity": state.get("activity"),
+            "session_id": state.get("session_id"),
+        }
+
+
+    class Handler(BaseHTTPRequestHandler):
+        server_version = "WispChannelBridge/1.0"
+
+        def log_message(self, format: str, *args) -> None:  # noqa: A003
+            log(format % args)
+
+        def do_POST(self) -> None:  # noqa: N802
+            try:
+                require_secret(self)
+                parsed = urlparse(self.path)
+                if parsed.path == "/message":
+                    body = parse_json_body(self)
+                    if not body.get("chat_id") or not body.get("text"):
+                        raise BridgeError(400, "chat_id and text are required")
+                    request = {
+                        "chat_id": str(body["chat_id"]),
+                        "text": str(body["text"]),
+                        "working_directory": body.get("working_directory"),
+                        "session_id": body.get("session_id"),
+                        "model": body.get("model"),
+                        "custom_instructions": body.get("custom_instructions"),
+                        "attachments": body.get("attachments") or [],
+                    }
+                    with STATE_LOCK:
+                        state = enqueue_message(request)
+                    send_json(
+                        self,
+                        202,
+                        {
+                            "ok": True,
+                            "session_id": state.get("session_id"),
+                            "is_busy": state.get("busy"),
+                        },
+                    )
+                    return
+
+                if parsed.path == "/interrupt":
+                    body = parse_json_body(self)
+                    chat_id = body.get("chat_id")
+                    if not chat_id:
+                        raise BridgeError(400, "chat_id is required")
+                    with STATE_LOCK:
+                        state = interrupt_chat(str(chat_id))
+                    send_json(
+                        self,
+                        200,
+                        {
+                            "ok": True,
+                            "session_id": state.get("session_id"),
+                            "is_busy": state.get("busy"),
+                        },
+                    )
+                    return
+
+                raise BridgeError(404, "Not found")
+            except BridgeError as exc:
+                send_json(self, exc.status, {"error": exc.message})
+            except Exception as exc:  # pragma: no cover - defensive server guard
+                log(f"Unhandled POST error: {exc}")
+                send_json(self, 500, {"error": "Internal server error"})
+
+        def do_GET(self) -> None:  # noqa: N802
+            try:
+                require_secret(self)
+                parsed = urlparse(self.path)
+                query = parse_qs(parsed.query)
+
+                if parsed.path == "/status":
+                    chat_id = query.get("chat_id", [None])[0]
+                    with STATE_LOCK:
+                        status = chat_status(chat_id)
+                    send_json(self, 200, status)
+                    return
+
+                if parsed.path == "/events":
+                    chat_id = query.get("chat_id", [None])[0]
+                    if not chat_id:
+                        raise BridgeError(400, "chat_id is required")
+                    self.stream_events(str(chat_id))
+                    return
+
+                raise BridgeError(404, "Not found")
+            except BridgeError as exc:
+                send_json(self, exc.status, {"error": exc.message})
+            except BrokenPipeError:
+                return
+            except Exception as exc:  # pragma: no cover - defensive server guard
+                log(f"Unhandled GET error: {exc}")
+                send_json(self, 500, {"error": "Internal server error"})
+
+        def stream_events(self, chat_id: str) -> None:
+            last_seen = parse_last_event_id(self.headers.get("Last-Event-ID"))
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+
+            last_heartbeat = time.time()
+
+            while True:
+                with STATE_LOCK:
+                    chat_dir = safe_chat_dir(chat_id)
+                    ensure_chat_dirs(chat_dir)
+                    state = load_state(chat_dir, chat_id)
+                    state = sync_session_events(chat_dir, state)
+                    events = list_events_after(chat_dir, last_seen)
+
+                for record in events:
+                    payload = json.dumps(record["data"], separators=(",", ":"))
+                    self.wfile.write(f"id: {record['id']}\n".encode("utf-8"))
+                    self.wfile.write(f"event: {record['event']}\n".encode("utf-8"))
+                    self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                    last_seen = parse_last_event_id(record["id"])
+                    if record["event"] == "result":
+                        return
+
+                if not state.get("busy") and not events:
+                    return
+
+                now = time.time()
+                if now - last_heartbeat >= SSE_HEARTBEAT_SECONDS:
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                    last_heartbeat = now
+
+                time.sleep(SSE_POLL_INTERVAL)
+
+
+    def main() -> None:
+        ensure_base_dirs()
+        server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+        log(f"Listening on :{PORT}")
+        server.serve_forever()
+
+
+    if __name__ == "__main__":
+        main()
+    """#
+
+    static let channelScript = #"""
+    #!/usr/bin/env python3
+    """Per-chat MCP channel helper for Wisp.
+
+    Claude Code spawns this process from the chat-specific MCP config. The helper
+    polls a shared inbox directory and forwards those messages into the Claude
+    session as channel notifications.
+    """
+
+    from __future__ import annotations
+
+    import json
+    import os
+    import sys
+    import threading
+    import time
+    from pathlib import Path
+
+    CHAT_DIR = Path(os.environ["WISP_CHAT_DIR"])
+    CHAT_ID = os.environ.get("WISP_CHAT_ID", "unknown")
+    INBOX_DIR = CHAT_DIR / "inbox"
+    PROTOCOL_VERSION = "2025-11-25"
+
+    send_lock = threading.Lock()
+    running = True
+    initialized = False
+
+
+    def log(message: str) -> None:
+        print(f"[wisp-channel-helper] {message}", file=sys.stderr, flush=True)
+
+
+    def send_message(payload: dict) -> None:
+        line = json.dumps(payload, separators=(",", ":"))
+        with send_lock:
+            sys.stdout.write(line + "\n")
+            sys.stdout.flush()
+
+
+    def inbox_loop() -> None:
+        global running
+        while running:
+            if not initialized:
+                time.sleep(0.1)
+                continue
+
+            for path in sorted(INBOX_DIR.glob("*.json")):
+                try:
+                    with path.open("r", encoding="utf-8") as handle:
+                        payload = json.load(handle)
+                    send_message(
+                        {
+                            "jsonrpc": "2.0",
+                            "method": "notifications/claude/channel",
+                            "params": {
+                                "content": payload.get("text", ""),
+                                "meta": {
+                                    "chat_id": payload.get("chat_id", CHAT_ID),
+                                    "message_id": payload.get("id"),
+                                    "working_directory": payload.get("working_directory"),
+                                },
+                            },
+                        }
+                    )
+                    path.unlink(missing_ok=True)
+                except Exception as exc:
+                    log(f"Failed to forward inbox message {path.name}: {exc}")
+            time.sleep(0.2)
+
+
+    def main() -> None:
+        global running
+        global initialized
+
+        INBOX_DIR.mkdir(parents=True, exist_ok=True)
+        worker = threading.Thread(target=inbox_loop, daemon=True)
+        worker.start()
+
+        while True:
+            line = sys.stdin.readline()
+            if not line:
+                break
+
+            line = line.strip()
+            if not line:
+                continue
+
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            method = message.get("method")
+            message_id = message.get("id")
+
+            if method == "initialize":
+                send_message(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": message_id,
+                        "result": {
+                            "protocolVersion": PROTOCOL_VERSION,
+                            "capabilities": {
+                                "experimental": {"claude/channel": {}},
+                                "tools": {},
+                            },
+                            "serverInfo": {
+                                "name": "wisp-channel-helper",
+                                "version": "1.0.0",
+                            },
+                            "instructions": (
+                                "Messages arrive as <channel source=\"wisp\" chat_id=\"...\" "
+                                "message_id=\"...\" working_directory=\"...\">. Treat each "
+                                "channel event as a normal user message from the Wisp iOS app. "
+                                "Respond normally in this Claude session; Wisp mirrors the "
+                                "session transcript back to the user."
+                            ),
+                        },
+                    }
+                )
+            elif method == "notifications/initialized":
+                initialized = True
+            elif method == "tools/list":
+                send_message({"jsonrpc": "2.0", "id": message_id, "result": {"tools": []}})
+
+        running = False
+
+
+    if __name__ == "__main__":
+        main()
+    """#
 }
