@@ -175,10 +175,9 @@ struct ChatView: View {
                     },
                     lastUploadedFileName: viewModel.lastUploadedFileName,
                     onStash: { viewModel.stashDraft() },
-                    onSideChat: {
+                    onQuickActions: {
                         quickActionsViewModel = QuickActionsViewModel(
                             spriteName: viewModel.spriteName,
-                            sessionId: viewModel.sessionId,
                             workingDirectory: viewModel.workingDirectory
                         )
                     },
@@ -192,7 +191,6 @@ struct ChatView: View {
                 Button {
                     quickActionsViewModel = QuickActionsViewModel(
                         spriteName: viewModel.spriteName,
-                        sessionId: viewModel.sessionId,
                         workingDirectory: viewModel.workingDirectory
                     )
                 } label: {

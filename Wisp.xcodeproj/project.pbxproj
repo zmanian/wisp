@@ -39,16 +39,12 @@
 		A21BF0D8D910819DD5591E88 /* ExecSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2554BB4DE8EC315CA48767BF /* ExecSession.swift */; };
 		A610B5413A578D4AA424595D /* ToolUseCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A278B4716095105A7024CF8 /* ToolUseCardView.swift */; };
 		A92BE24BEAF80FF31B4ACA00 /* CheckpointsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0AD6D912964E32FC8685EA3 /* CheckpointsViewModel.swift */; };
-		AA10BB20CC30DD40EE50FF01 /* QuickChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10BB20CC30DD40EE50FF02 /* QuickChatViewModel.swift */; };
 		AA3100BB00CC00DD00EE0001 /* QuickActionsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3100BB00CC00DD00EE0002 /* QuickActionsViewModel.swift */; };
 		AA3200BB00CC00DD00EE0001 /* BashQuickViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3200BB00CC00DD00EE0002 /* BashQuickViewModel.swift */; };
 		AA3300BB00CC00DD00EE0001 /* QuickActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3300BB00CC00DD00EE0002 /* QuickActionsView.swift */; };
-		AA3400BB00CC00DD00EE0001 /* QuickChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3400BB00CC00DD00EE0002 /* QuickChatView.swift */; };
 		AA3500BB00CC00DD00EE0001 /* BashQuickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3500BB00CC00DD00EE0002 /* BashQuickView.swift */; };
 		AA3700BB00CC00DD00EE0001 /* BashQuickViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3700BB00CC00DD00EE0002 /* BashQuickViewModelTests.swift */; };
 		AA3800BB00CC00DD00EE0001 /* ChatSessionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3800BB00CC00DD00EE0002 /* ChatSessionManagerTests.swift */; };
-		FE9876543210ABCDEF987601 /* QuickChatViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9876543210ABCDEF987602 /* QuickChatViewModelTests.swift */; };
-		FE9876543210ABCDEF987603 /* SideChatViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9876543210ABCDEF987604 /* SideChatViewModelTests.swift */; };
 		AA00BB11CC22DD3300000001 /* WispAskCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00BB11CC22DD3300000002 /* WispAskCard.swift */; };
 		AA11BB22CC33DD44EE55FF02 /* GitHubDeviceFlowClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF01 /* GitHubDeviceFlowClient.swift */; };
 		AA11BB22CC33DD44EE55FF04 /* GitHubDeviceFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF03 /* GitHubDeviceFlowView.swift */; };
@@ -141,9 +137,7 @@
 		AA0011BB22CC33DD44EE0006 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0005 /* LiveActivityManager.swift */; };
 		AA0011BB22CC33DD44EE000C /* WispActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000B /* WispActivityAttributes.swift */; };
 		AA0011BB22CC33DD44EE000E /* ServicesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000D /* ServicesViewModel.swift */; };
-		AA0011BB22CC33DD44EE0010 /* SideChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000F /* SideChatViewModel.swift */; };
 		AA0011BB22CC33DD44EE0018 /* ScreenshotPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0017 /* ScreenshotPreviews.swift */; };
-		AA0011BB22CC33DD44EE001A /* SideChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0019 /* SideChatView.swift */; };
 		AA0011BB22CC33DD44EE001C /* ServiceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE001B /* ServiceDetailView.swift */; };
 		AA0011BB22CC33DD44EE001E /* ServiceRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE001D /* ServiceRowView.swift */; };
 		AA0011BB22CC33DD44EE0020 /* ServicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE001F /* ServicesView.swift */; };
@@ -261,23 +255,17 @@
 		F7A8B9C0D1E2F30415263749 /* PlanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCardView.swift; sourceTree = "<group>"; };
 		FF11AA22BB33CC44DD55EE01 /* ChatViewModelHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModelHelpersTests.swift; sourceTree = "<group>"; };
 		FF11AA22BB33CC44DD55EE03 /* ChatViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModelTests.swift; sourceTree = "<group>"; };
-		AA10BB20CC30DD40EE50FF02 /* QuickChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickChatViewModel.swift; sourceTree = "<group>"; };
 		AA3100BB00CC00DD00EE0002 /* QuickActionsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsViewModel.swift; sourceTree = "<group>"; };
 		AA3200BB00CC00DD00EE0002 /* BashQuickViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashQuickViewModel.swift; sourceTree = "<group>"; };
 		AA3300BB00CC00DD00EE0002 /* QuickActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsView.swift; sourceTree = "<group>"; };
-		AA3400BB00CC00DD00EE0002 /* QuickChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickChatView.swift; sourceTree = "<group>"; };
 		AA3500BB00CC00DD00EE0002 /* BashQuickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashQuickView.swift; sourceTree = "<group>"; };
 		AA3700BB00CC00DD00EE0002 /* BashQuickViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashQuickViewModelTests.swift; sourceTree = "<group>"; };
 		AA3800BB00CC00DD00EE0002 /* ChatSessionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionManagerTests.swift; sourceTree = "<group>"; };
-		FE9876543210ABCDEF987602 /* QuickChatViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickChatViewModelTests.swift; sourceTree = "<group>"; };
-		FE9876543210ABCDEF987604 /* SideChatViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideChatViewModelTests.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE0001 /* ShellEscaping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellEscaping.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE0005 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE000B /* WispActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispActivityAttributes.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE000D /* ServicesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesViewModel.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE000F /* SideChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideChatViewModel.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE0017 /* ScreenshotPreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotPreviews.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE0019 /* SideChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideChatView.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE001B /* ServiceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDetailView.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE001D /* ServiceRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRowView.swift; sourceTree = "<group>"; };
 		AA0011BB22CC33DD44EE001F /* ServicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesView.swift; sourceTree = "<group>"; };
@@ -464,9 +452,7 @@
 				D0AD6D912964E32FC8685EA3 /* CheckpointsViewModel.swift */,
 				EF49F7E0F4AC02FDF496D379 /* DashboardViewModel.swift */,
 				AA3100BB00CC00DD00EE0002 /* QuickActionsViewModel.swift */,
-				AA10BB20CC30DD40EE50FF02 /* QuickChatViewModel.swift */,
 				AA0011BB22CC33DD44EE000D /* ServicesViewModel.swift */,
-				AA0011BB22CC33DD44EE000F /* SideChatViewModel.swift */,
 				C3D4E5F6A7B80920415C6D7E /* SpriteChatListViewModel.swift */,
 				AC9BFD0F0AC39C136C9E828A /* SpriteOverviewViewModel.swift */,
 			);
@@ -516,8 +502,6 @@
 				CC11DD22EE33FF4400110005 /* FileEntryTests.swift */,
 				AA3700BB00CC00DD00EE0002 /* BashQuickViewModelTests.swift */,
 				AA3800BB00CC00DD00EE0002 /* ChatSessionManagerTests.swift */,
-				FE9876543210ABCDEF987602 /* QuickChatViewModelTests.swift */,
-				FE9876543210ABCDEF987604 /* SideChatViewModelTests.swift */,
 			);
 			path = WispTests;
 			sourceTree = "<group>";
@@ -541,7 +525,6 @@
 			isa = PBXGroup;
 			children = (
 				AA3300BB00CC00DD00EE0002 /* QuickActionsView.swift */,
-				AA3400BB00CC00DD00EE0002 /* QuickChatView.swift */,
 				AA3500BB00CC00DD00EE0002 /* BashQuickView.swift */,
 			);
 			path = QuickActions;
@@ -572,7 +555,6 @@
 				8A278B4716095105A7024CF8 /* ToolUseCardView.swift */,
 				E1F2A3B4C5D6E7F800000003 /* UnifiedDiffView.swift */,
 				45BC8CB419377B55A1D1F896 /* UserBubbleView.swift */,
-				AA0011BB22CC33DD44EE0019 /* SideChatView.swift */,
 				AA00BB11CC22DD3300000002 /* WispAskCard.swift */,
 				E1F2A3B4C5D6E7F800000001 /* WispCodeHighlighter.swift */,
 				E1F2A3B4C5D6E7F800000002 /* WispMarkdownTheme.swift */,
@@ -851,17 +833,13 @@
 				AA3200BB00CC00DD00EE0001 /* BashQuickViewModel.swift in Sources */,
 				AA3300BB00CC00DD00EE0001 /* QuickActionsView.swift in Sources */,
 				AA3100BB00CC00DD00EE0001 /* QuickActionsViewModel.swift in Sources */,
-				AA3400BB00CC00DD00EE0001 /* QuickChatView.swift in Sources */,
-				AA10BB20CC30DD40EE50FF01 /* QuickChatViewModel.swift in Sources */,
 				E1F2A3B4C5D6E7F800000012 /* WispCodeHighlighter.swift in Sources */,
 				E1F2A3B4C5D6E7F800000013 /* WispMarkdownTheme.swift in Sources */,
 				AA0011BB22CC33DD44EE0002 /* ShellEscaping.swift in Sources */,
 				AA0011BB22CC33DD44EE0006 /* LiveActivityManager.swift in Sources */,
 				AA0011BB22CC33DD44EE000C /* WispActivityAttributes.swift in Sources */,
 				AA0011BB22CC33DD44EE000E /* ServicesViewModel.swift in Sources */,
-				AA0011BB22CC33DD44EE0010 /* SideChatViewModel.swift in Sources */,
 				AA0011BB22CC33DD44EE0018 /* ScreenshotPreviews.swift in Sources */,
-				AA0011BB22CC33DD44EE001A /* SideChatView.swift in Sources */,
 				AA0011BB22CC33DD44EE001C /* ServiceDetailView.swift in Sources */,
 				AA0011BB22CC33DD44EE001E /* ServiceRowView.swift in Sources */,
 				AA0011BB22CC33DD44EE0020 /* ServicesView.swift in Sources */,
@@ -896,8 +874,6 @@
 				CC11DD22EE33FF4400110006 /* FileEntryTests.swift in Sources */,
 				AA3700BB00CC00DD00EE0001 /* BashQuickViewModelTests.swift in Sources */,
 				AA3800BB00CC00DD00EE0001 /* ChatSessionManagerTests.swift in Sources */,
-				FE9876543210ABCDEF987601 /* QuickChatViewModelTests.swift in Sources */,
-				FE9876543210ABCDEF987603 /* SideChatViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

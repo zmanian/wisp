@@ -334,7 +334,6 @@ struct SpriteDetailView: View {
     private func openSpriteQuickActions() {
         spriteQuickActionsViewModel = QuickActionsViewModel(
             spriteName: sprite.name,
-            sessionId: nil,
             workingDirectory: "/home/sprite/project"
         )
     }
