@@ -54,7 +54,6 @@ final class ChatViewModel {
     var isLoadingRemoteSessions = false
     var isLoadingHistory = false
 
-    private(set) var execSessionId: String?
     private(set) var sessionId: String?
     private(set) var channelLastEventId: String?
     var workingDirectory: String
@@ -216,20 +215,11 @@ final class ChatViewModel {
         currentAssistantMessage?.id
     }
 
-    private var transportMode: ClaudeChatTransportMode {
-        ClaudeChatTransportMode.current
-    }
-
-    private var usesChannelTransport: Bool {
-        transportMode == .channels
-    }
-
-    func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
+func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
         self.apiClient = apiClient
         guard let chat = fetchChat(modelContext: modelContext) else { return }
 
         sessionId = chat.claudeSessionId
-        execSessionId = chat.execSessionId
         channelLastEventId = chat.channelLastEventId
         workingDirectory = chat.workingDirectory
         worktreePath = chat.worktreePath
@@ -657,31 +647,18 @@ final class ChatViewModel {
         // Note: we keep sessionId intact so the next message can resume the session.
         // If the session turns out to be stale, the stale-session retry logic handles it.
 
-        if usesChannelTransport {
-            channelLastEventId = nil
-            previousSessionDisconnected = true
-            if let apiClient {
-                let spriteName = spriteName
-                let bridgeChatId = chatId.uuidString.lowercased()
-                Task {
-                    guard let sprite = try? await apiClient.getSprite(name: spriteName) else { return }
-                    try? await apiClient.interruptChannelBridge(sprite: sprite, chatId: bridgeChatId)
-                }
-            }
-            if let modelContext {
-                saveSession(modelContext: modelContext, isComplete: true)
-            }
-            return
-        }
-
-        // Kill the exec session to stop it; clear execSessionId to prevent reconnect
-        let execId = execSessionId
-        execSessionId = nil
-        if let apiClient, let execId {
-            let sName = spriteName
+        channelLastEventId = nil
+        previousSessionDisconnected = true
+        if let apiClient {
+            let spriteName = spriteName
+            let bridgeChatId = chatId.uuidString.lowercased()
             Task {
-                try? await apiClient.killExecSession(spriteName: sName, execSessionId: execId)
+                guard let sprite = try? await apiClient.getSprite(name: spriteName) else { return }
+                try? await apiClient.interruptChannelBridge(sprite: sprite, chatId: bridgeChatId)
             }
+        }
+        if let modelContext {
+            saveSession(modelContext: modelContext, isComplete: true)
         }
     }
 
@@ -705,33 +682,15 @@ final class ChatViewModel {
         // resumeAllAfterBackground before the first task had a chance to set .reconnecting).
         streamTask?.cancel()
 
-        if usesChannelTransport {
-            let shouldAttemptChannelReconnect =
-                channelLastEventId != nil || sessionId != nil || messages.last?.role == .assistant
-            guard shouldAttemptChannelReconnect else {
-                restoreUndeliveredDraft(modelContext: modelContext)
-                return
-            }
-            streamTask = Task {
-                guard !Task.isCancelled else { return }
-                await reattachToChannel(apiClient: apiClient, modelContext: modelContext)
-            }
-            return
-        }
-
-        guard let execId = execSessionId else {
-            // No exec session ID: message was never sent, or legacy service-based chat.
-            // Restore any trailing user message as a draft rather than leaving a
-            // stale bubble with no response.
+        let shouldAttemptChannelReconnect =
+            channelLastEventId != nil || sessionId != nil || messages.last?.role == .assistant
+        guard shouldAttemptChannelReconnect else {
             restoreUndeliveredDraft(modelContext: modelContext)
             return
         }
-
         streamTask = Task {
-            // If this task was pre-cancelled (e.g. superseded by a second reconnectIfNeeded
-            // call in the same run-loop turn), bail out before touching any state.
             guard !Task.isCancelled else { return }
-            await reattachToExec(execSessionId: execId, apiClient: apiClient, modelContext: modelContext)
+            await reattachToChannel(apiClient: apiClient, modelContext: modelContext)
         }
     }
 
@@ -754,11 +713,7 @@ final class ChatViewModel {
         apiClient: SpritesAPIClient,
         modelContext: ModelContext
     ) async {
-        if usesChannelTransport {
-            await executeChannelMessage(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
-        } else {
-            await executeClaudeCommand(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
-        }
+        await executeChannelMessage(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
     }
 
     private func preparePromptForSend(_ prompt: String, modelContext: ModelContext) -> String {
@@ -802,7 +757,6 @@ final class ChatViewModel {
         }
 
         let fullPrompt = preparePromptForSend(prompt, modelContext: modelContext)
-        execSessionId = nil
         receivedSystemEvent = false
         receivedResultEvent = false
         turnHasMutations = false
@@ -883,190 +837,6 @@ final class ChatViewModel {
         }
     }
 
-    private func executeClaudeCommand(
-        prompt: String,
-        apiClient: SpritesAPIClient,
-        modelContext: ModelContext
-    ) async {
-        status = .connecting
-
-        let wakeOutcome: SpriteWakeOutcome
-        do {
-            wakeOutcome = try await apiClient.wakeSpriteIfNeeded(name: spriteName, timeout: 25)
-        } catch {
-            logger.error("Sprite wake failed before chat send: \(Self.sanitize(error.localizedDescription), privacy: .public)")
-            status = .error("Network error waking sprite — check your connection and try again")
-            return
-        }
-
-        // Install question tool (best-effort — don't block chat if it fails)
-        var questionToolInstalled = false
-        if UserDefaults.standard.bool(forKey: "claudeQuestionTool") {
-            if case .timedOut = wakeOutcome {
-                logger.info("Skipping question tool install because sprite is still warming; chat send will continue")
-            } else {
-                questionToolInstalled = await installClaudeQuestionToolIfNeeded(apiClient: apiClient)
-                if !questionToolInstalled {
-                    logger.warning("Question tool install failed — proceeding without it")
-                }
-            }
-        }
-
-        // Persist the new session immediately; clear any prior completion flag
-        channelLastEventId = nil
-        saveSession(modelContext: modelContext, isComplete: false)
-
-        guard let claudeToken = apiClient.claudeToken else {
-            status = .error("No Claude token configured")
-            return
-        }
-
-        let fullPrompt = preparePromptForSend(prompt, modelContext: modelContext)
-
-        // Build the full bash -c command with env vars inlined
-        var commandParts: [String] = [
-            "export CLAUDE_CODE_OAUTH_TOKEN=\(shellEscape(claudeToken))",
-            "export NO_DNA=1", // Signal to CLIs that they're running under an agent operator (no-dna.org)
-            "mkdir -p \(shellEscape(workingDirectory))",
-            "cd \(shellEscape(workingDirectory))",
-        ]
-
-        let gitName = UserDefaults.standard.string(forKey: "gitName") ?? ""
-        let gitEmail = UserDefaults.standard.string(forKey: "gitEmail") ?? ""
-        if !gitName.isEmpty {
-            commandParts.append("git config --global user.name \(shellEscape(gitName))")
-        }
-        if !gitEmail.isEmpty {
-            commandParts.append("git config --global user.email \(shellEscape(gitEmail))")
-        }
-
-        var claudeCmd = "claude -p --verbose --output-format stream-json --dangerously-skip-permissions"
-        if questionToolInstalled {
-            let sessionId = chatId.uuidString.lowercased()
-            let configPath = ClaudeQuestionTool.mcpConfigFilePath(for: sessionId)
-            // Write per-session MCP config (inlined in the command chain so no extra round-trip)
-            commandParts.append("echo \(shellEscape(ClaudeQuestionTool.mcpConfigJSON(for: sessionId))) > \(shellEscape(configPath))")
-            claudeCmd += " --disallowedTools AskUserQuestion"
-            claudeCmd += " --mcp-config \(shellEscape(configPath))"
-        }
-
-        let modelId = modelOverride?.rawValue ?? UserDefaults.standard.string(forKey: "claudeModel") ?? ClaudeModel.sonnet.rawValue
-        claudeCmd += " --model \(modelId)"
-
-        let maxTurns = UserDefaults.standard.integer(forKey: "maxTurns")
-        if maxTurns > 0 {
-            claudeCmd += " --max-turns \(maxTurns)"
-        }
-
-        let customInstructions = UserDefaults.standard.string(forKey: "customInstructions") ?? ""
-        if !customInstructions.isEmpty {
-            claudeCmd += " --append-system-prompt \(shellEscape(customInstructions))"
-        }
-
-        usedResume = sessionId != nil
-        if let sessionId {
-            claudeCmd += " --resume \(shellEscape(sessionId))"
-        }
-        claudeCmd += " \(shellEscape(fullPrompt))"
-
-        // Wrap claude with a heartbeat so the sprite stays alive while Claude
-        // is waiting for an API response and Wisp is detached. The heartbeat
-        // writes a byte to stderr every 20s — enough to count as output without
-        // interfering with the NDJSON stdout stream. The trap ensures cleanup.
-        let wrappedClaudeCmd = "{ (while true; do sleep 20; printf . >&2; done) & HBEAT=$!; trap \"kill $HBEAT 2>/dev/null\" EXIT; \(claudeCmd); kill $HBEAT 2>/dev/null; }"
-        commandParts.append(wrappedClaudeCmd)
-        let fullCommand = commandParts.joined(separator: " && ")
-
-        receivedSystemEvent = false
-        receivedResultEvent = false
-        turnHasMutations = false
-        processedEventUUIDs = []
-        hasPlayedFirstTextHaptic = false
-
-        logger.info("Exec command: \(Self.sanitize(fullCommand))")
-
-        let session = apiClient.createExecSession(
-            spriteName: spriteName,
-            command: fullCommand,
-            maxRunAfterDisconnect: 3600
-        )
-        session.connect()
-
-        let assistantMessage = ChatMessage(role: .assistant)
-        messages.append(assistantMessage)
-        currentAssistantMessage = assistantMessage
-
-        let streamResult = await processExecStream(events: session.events(), modelContext: modelContext)
-        session.disconnect()
-
-        let uuidCount = processedEventUUIDs.count
-        logger.info("[Chat] Exec stream ended: result=\(streamResult), cancelled=\(Task.isCancelled), uuids=\(uuidCount)")
-
-        // If cancelled (e.g. by resumeAfterBackground), bail out immediately.
-        guard !Task.isCancelled else { return }
-
-        if currentAssistantMessage?.id == assistantMessage.id {
-            currentAssistantMessage = nil
-        }
-
-        // On disconnect, exec session is still alive on the server (max_run_after_disconnect).
-        // Go idle — reconnectIfNeeded will reattach when user returns.
-        if case .disconnected = streamResult {
-            logger.info("[Chat] Disconnected mid-stream, exec session preserved for reattach")
-            status = .idle
-            persistMessages(modelContext: modelContext)
-            return
-        }
-
-        // If timed out with no data, clear Claude lock files and retry once
-        if case .timedOut = streamResult, !retriedAfterTimeout {
-            logger.info("Timeout — clearing Claude lock files and retrying")
-            retriedAfterTimeout = true
-            status = .connecting
-            if let idx = messages.firstIndex(where: { $0.id == assistantMessage.id }) {
-                messages.remove(at: idx)
-            }
-            let notice = ChatMessage(role: .system, content: [.text("Slow to respond — retrying...")])
-            messages.append(notice)
-            await runExecWithTimeout(apiClient: apiClient, command: "rm -rf /home/sprite/.local/state/claude/locks", timeout: 15)
-            await executeClaudeCommand(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
-            return
-        }
-
-        // If --resume failed (no system event received), retry without it
-        if usedResume && !receivedSystemEvent {
-            logger.info("Stale session detected, retrying without --resume")
-            if let idx = messages.firstIndex(where: { $0.id == assistantMessage.id }) {
-                messages.remove(at: idx)
-            }
-            let notice = ChatMessage(role: .system, content: [.text("Session expired — starting fresh")])
-            messages.append(notice)
-            sessionId = nil
-            saveSession(modelContext: modelContext)
-            await executeClaudeCommand(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
-            return
-        }
-
-        saveSession(modelContext: modelContext)
-
-        if case .streaming = status {
-            status = .idle
-        }
-
-        persistMessages(modelContext: modelContext)
-
-        if let queued = queuedPrompt {
-            let prompt = buildPrompt(text: queued, attachments: queuedAttachments)
-            queuedPrompt = nil
-            queuedAttachments = []
-            let userMessage = ChatMessage(role: .user, content: [.text(prompt)])
-            messages.append(userMessage)
-            persistMessages(modelContext: modelContext)
-            await executeClaudeCommand(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
-        }
-    }
-
-    /// Result of processing a service stream
     enum StreamResult: Equatable, CustomStringConvertible {
         case completed
         case timedOut
@@ -1108,93 +878,6 @@ final class ChatViewModel {
             if case .reconnecting = status { status = .streaming }
         }
         handleEvent(parsedEvent, modelContext: modelContext)
-    }
-
-    /// Process events from an exec WebSocket stream.
-    /// Events whose UUID is in `processedEventUUIDs` are skipped (but system/result
-    /// flags are still tracked). New event UUIDs are added to `processedEventUUIDs`
-    /// as they are handled, so reattach replays never duplicate content.
-    func processExecStream(
-        events: AsyncThrowingStream<ExecEvent, Error>,
-        modelContext: ModelContext
-    ) async -> StreamResult {
-        var receivedData = false
-        var lastPersistTime = Date.distantPast
-
-        let timeoutTask = Task {
-            try await Task.sleep(for: .seconds(45))
-            if !receivedData {
-                logger.warning("No exec data received in 30s")
-            }
-        }
-
-        do {
-            streamLoop: for try await event in events {
-                guard !Task.isCancelled else { break streamLoop }
-
-                switch event {
-                case .sessionInfo(let id):
-                    execSessionId = id
-                    saveSession(modelContext: modelContext, isComplete: false)
-                    if case .connecting = status { status = .streaming }
-                    else if case .reconnecting = status { status = .streaming }
-
-                case .stdout(let data):
-                    receivedData = true
-                    timeoutTask.cancel()
-                    if case .connecting = status { status = .streaming }
-                    else if case .reconnecting = status { status = .streaming }
-
-                    let parsedEvents = await parser.parse(data: data)
-                    for parsedEvent in parsedEvents {
-                        handleOrSkipStreamEvent(parsedEvent, modelContext: modelContext)
-                    }
-
-                    if receivedResultEvent { break streamLoop }
-
-                    let now = Date()
-                    if now.timeIntervalSince(lastPersistTime) > 1 {
-                        lastPersistTime = now
-                        persistMessages(modelContext: modelContext)
-                    }
-
-                case .stderr:
-                    // Heartbeat noise — count as activity to avoid timeout but discard
-                    receivedData = true
-                    timeoutTask.cancel()
-                    if case .connecting = status { status = .streaming }
-                    else if case .reconnecting = status { status = .streaming }
-
-                case .exit(let code):
-                    timeoutTask.cancel()
-                    logger.info("Exec exit: code=\(code)")
-                    let remaining = await parser.flush()
-                    for e in remaining {
-                        handleOrSkipStreamEvent(e, modelContext: modelContext)
-                    }
-                    break streamLoop
-                }
-            }
-
-            let remaining = await parser.flush()
-            for e in remaining {
-                handleOrSkipStreamEvent(e, modelContext: modelContext)
-            }
-            timeoutTask.cancel()
-
-            let uuidCount = processedEventUUIDs.count
-            logger.info("Exec stream ended: receivedData=\(receivedData) uuids=\(uuidCount) gotResult=\(self.receivedResultEvent)")
-            if Task.isCancelled { return .cancelled }
-            if !receivedData { return .timedOut }
-            return receivedResultEvent ? .completed : .disconnected
-        } catch {
-            timeoutTask.cancel()
-            logger.error("Exec stream error: \(Self.sanitize(error.localizedDescription), privacy: .public)")
-            if Task.isCancelled { return .cancelled }
-            if receivedData { return .disconnected }
-            status = .error("No response from Claude — try again")
-            return .timedOut
-        }
     }
 
     /// Process Claude-compatible events delivered over channel bridge SSE.
@@ -1350,92 +1033,6 @@ final class ChatViewModel {
         }
     }
 
-    /// Reattach to a running exec session after disconnect (e.g. app backgrounded).
-    /// Replays scrollback from the exec session, then streams live events.
-    /// If the exec session is gone (sprite slept), falls back to restoreFromSessionFile.
-    private func reattachToExec(
-        execSessionId: String,
-        apiClient: SpritesAPIClient,
-        modelContext: ModelContext
-    ) async {
-        status = .reconnecting
-        isReplaying = true
-        isReplayingLiveService = true
-        defer {
-            applyReplayBuffer()
-            isReplaying = false
-            isReplayingLiveService = false
-        }
-
-        hasPlayedFirstTextHaptic = false
-
-        // Ensure we have an assistant message to append into.
-        let assistantMessage: ChatMessage
-        let hasPriorEvents = !processedEventUUIDs.isEmpty
-        if let existing = currentAssistantMessage {
-            assistantMessage = existing
-            if !hasPriorEvents { assistantMessage.content = [] }
-        } else if let last = messages.last, last.role == .assistant {
-            assistantMessage = last
-            if !hasPriorEvents { assistantMessage.content = [] }
-            currentAssistantMessage = last
-        } else {
-            assistantMessage = ChatMessage(role: .assistant)
-            messages.append(assistantMessage)
-            currentAssistantMessage = assistantMessage
-        }
-
-        await parser.reset()
-        if !hasPriorEvents {
-            toolUseIndex = [:]
-            rebuildToolUseIndex()
-        }
-        receivedSystemEvent = false
-        receivedResultEvent = false
-
-        let session = apiClient.attachExecSession(spriteName: spriteName, execSessionId: execSessionId)
-        session.connect()
-
-        let streamResult = await processExecStream(events: session.events(), modelContext: modelContext)
-        session.disconnect()
-
-        if currentAssistantMessage?.id == assistantMessage.id {
-            currentAssistantMessage = nil
-        }
-
-        // If exec session is gone (sprite slept, exec expired, or connection error),
-        // restore from Claude's session file. Both .disconnected (WebSocket closed cleanly
-        // with no data) and .timedOut (connection error / no data received) indicate the
-        // exec session no longer exists when reattaching.
-        let shouldRestoreFromFile: Bool
-        switch streamResult {
-        case .timedOut, .disconnected: shouldRestoreFromFile = sessionId != nil
-        default: shouldRestoreFromFile = false
-        }
-        if shouldRestoreFromFile {
-            // Clear any error status set by processExecStream before restoring
-            if case .error = status { status = .reconnecting }
-            logger.info("[Chat] Exec session gone (result=\(streamResult)) — restoring from session file")
-            await restoreFromSessionFile(apiClient: apiClient, modelContext: modelContext)
-        }
-
-        saveSession(modelContext: modelContext)
-        if !Task.isCancelled {
-            status = .idle
-        }
-        persistMessages(modelContext: modelContext)
-
-        if let queued = queuedPrompt, !Task.isCancelled {
-            let prompt = buildPrompt(text: queued, attachments: queuedAttachments)
-            queuedPrompt = nil
-            queuedAttachments = []
-            let userMessage = ChatMessage(role: .user, content: [.text(prompt)])
-            messages.append(userMessage)
-            persistMessages(modelContext: modelContext)
-            await executePromptOverSelectedTransport(prompt: prompt, apiClient: apiClient, modelContext: modelContext)
-        }
-    }
-
     /// Restore chat history from Claude's .jsonl session file on the sprite.
     /// Used when the exec session is gone (sprite slept, exec expired).
     private func restoreFromSessionFile(apiClient: SpritesAPIClient, modelContext: ModelContext) async {
@@ -1479,7 +1076,6 @@ final class ChatViewModel {
             // Trailing user message — restore as draft
             restoreUndeliveredDraft(modelContext: modelContext)
         } else {
-            self.execSessionId = nil
             saveSession(modelContext: modelContext, isComplete: true)
         }
     }
@@ -1921,7 +1517,6 @@ final class ChatViewModel {
     private func saveSession(modelContext: ModelContext, isComplete: Bool? = nil) {
         guard let chat = fetchChat(modelContext: modelContext) else { return }
         chat.claudeSessionId = sessionId
-        chat.execSessionId = execSessionId
         chat.channelLastEventId = channelLastEventId
         chat.lastUsed = Date()
         if let isComplete { chat.lastSessionComplete = isComplete }
@@ -1985,10 +1580,6 @@ final class ChatViewModel {
     #if DEBUG
     func setCurrentAssistantMessage(_ message: ChatMessage?) {
         currentAssistantMessage = message
-    }
-
-    func setExecSessionId(_ id: String?) {
-        execSessionId = id
     }
 
     func setChannelLastEventId(_ id: String?) {

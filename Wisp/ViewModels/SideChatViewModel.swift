@@ -20,15 +20,7 @@ final class SideChatViewModel {
     private var streamTask: Task<Void, Never>?
     private let parser = ClaudeStreamParser()
 
-    private var transportMode: ClaudeChatTransportMode {
-        ClaudeChatTransportMode.current
-    }
-
-    private var usesChannelTransport: Bool {
-        transportMode == .channels
-    }
-
-    init(spriteName: String, sessionId: String, workingDirectory: String) {
+init(spriteName: String, sessionId: String, workingDirectory: String) {
         self.spriteName = spriteName
         self.sessionId = sessionId
         self.workingDirectory = workingDirectory
@@ -54,7 +46,6 @@ final class SideChatViewModel {
         streamTask = nil
         isStreaming = false
 
-        guard usesChannelTransport else { return }
         let spriteName = spriteName
         let bridgeChatId = chatId
         Task {
@@ -66,14 +57,6 @@ final class SideChatViewModel {
     // MARK: - Private
 
     private func executeQuestion(_ question: String, apiClient: SpritesAPIClient) async {
-        if usesChannelTransport {
-            await executeChannelQuestion(question, apiClient: apiClient)
-        } else {
-            await executeExecQuestion(question, apiClient: apiClient)
-        }
-    }
-
-    private func executeChannelQuestion(_ question: String, apiClient: SpritesAPIClient) async {
         let sprite: Sprite
         do {
             sprite = try await apiClient.ensureChannelBridgeReady(spriteName: spriteName)
@@ -148,77 +131,6 @@ final class SideChatViewModel {
                 self.error = "Connection error"
                 logger.error("Side chat channel stream error: \(error.localizedDescription)")
             }
-        }
-    }
-
-    private func executeExecQuestion(_ question: String, apiClient: SpritesAPIClient) async {
-        guard let claudeToken = apiClient.claudeToken else {
-            error = "No Claude token configured"
-            isStreaming = false
-            return
-        }
-        guard let sessionId else {
-            error = "No Claude session available"
-            isStreaming = false
-            return
-        }
-
-        let escapedQuestion = question.replacingOccurrences(of: "'", with: "'\\''")
-        let modelId = UserDefaults.standard.string(forKey: "claudeModel") ?? ClaudeModel.sonnet.rawValue
-
-        let commandParts: [String] = [
-            "export CLAUDE_CODE_OAUTH_TOKEN='\(claudeToken)'",
-            "cd \(workingDirectory)",
-            "claude -p --verbose --output-format stream-json --dangerously-skip-permissions --tools \"\" --model \(modelId) --resume \(sessionId) '\(escapedQuestion)'"
-        ]
-        let fullCommand = commandParts.joined(separator: " && ")
-
-        let session = apiClient.createExecSession(spriteName: spriteName, command: fullCommand)
-        session.connect()
-
-        await parser.reset()
-
-        var receivedResult = false
-
-        do {
-            streamLoop: for try await event in session.events() {
-                guard !Task.isCancelled else { break streamLoop }
-
-                switch event {
-                case .stdout(let data):
-                    let parsed = await parser.parse(data: data)
-                    for e in parsed {
-                        handle(e)
-                        if case .result = e { receivedResult = true }
-                    }
-                    if receivedResult { break streamLoop }
-
-                case .stderr:
-                    break
-
-                case .exit:
-                    let remaining = await parser.flush()
-                    for e in remaining { handle(e) }
-                    break streamLoop
-
-                case .sessionInfo:
-                    break
-                }
-            }
-
-            let remaining = await parser.flush()
-            for e in remaining { handle(e) }
-        } catch {
-            if !Task.isCancelled {
-                self.error = "Connection error"
-                logger.error("Side chat stream error: \(error.localizedDescription)")
-            }
-        }
-
-        session.disconnect()
-
-        if !Task.isCancelled {
-            isStreaming = false
         }
     }
 

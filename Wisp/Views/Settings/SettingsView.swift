@@ -3,8 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(SpritesAPIClient.self) private var apiClient
     @AppStorage("claudeModel") private var claudeModel: String = ClaudeModel.opus.rawValue
-    @AppStorage(ClaudeChatTransportMode.defaultsKey) private var chatTransportMode: String = ClaudeChatTransportMode.exec.rawValue
-    @AppStorage("maxTurns") private var maxTurns: Int = 0
+@AppStorage("maxTurns") private var maxTurns: Int = 0
     @AppStorage("claudeQuestionTool") private var claudeQuestionTool: Bool = true
     @AppStorage("gitName") private var gitName: String = ""
     @AppStorage("gitEmail") private var gitEmail: String = ""
@@ -31,11 +30,7 @@ struct SettingsView: View {
         ClaudeModel(rawValue: claudeModel) ?? .sonnet
     }
 
-    private var selectedTransportMode: ClaudeChatTransportMode {
-        ClaudeChatTransportMode(rawValue: chatTransportMode) ?? .exec
-    }
-
-    private var themeColorScheme: ColorScheme? {
+private var themeColorScheme: ColorScheme? {
         switch theme {
         case "light": .light
         case "dark": .dark
@@ -242,15 +237,6 @@ struct SettingsView: View {
     #if DEBUG
     private var developerSection: some View {
         Section {
-            Picker("Chat Transport", selection: $chatTransportMode) {
-                ForEach(ClaudeChatTransportMode.allCases) { mode in
-                    Text(mode.displayName).tag(mode.rawValue)
-                }
-            }
-            Text(selectedTransportMode.detailText)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
             HStack {
                 Label("Device ID", systemImage: "iphone")
                 Spacer()

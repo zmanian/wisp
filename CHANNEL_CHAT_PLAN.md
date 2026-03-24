@@ -36,6 +36,6 @@ This branch tracks the client-side groundwork for issue [#110](https://github.co
 
 ## Remaining Follow-Ups
 
-1. Decide whether the bridge should stay rooted at the sprite URL or move behind a dedicated subpath once we confirm how sprite HTTP proxying interacts with user-hosted apps.
+1. ~~Decide whether the bridge should stay rooted at the sprite URL or move behind a dedicated subpath once we confirm how sprite HTTP proxying interacts with user-hosted apps.~~ **Done.** Sprites only allow one `http_port` service — no path-based routing exists. Bridge stays at root and includes a reverse proxy for user apps.
 2. Decide how much quick/side chat should preserve exec-era tool restrictions now that the bridge owns long-lived Claude sessions.
-3. Remove the transport picker and delete exec-based chat now that the bridge path is proven end to end on a real sprite.
+3. ~~Remove the transport picker and delete exec-based chat now that the bridge path is proven end to end on a real sprite.~~ **Done.** `ClaudeChatTransportMode` enum, transport picker, and all exec-based chat code paths removed. Channel is now the only chat transport.
