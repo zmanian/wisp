@@ -176,7 +176,7 @@ enum ClaudeQuestionTool {
 }
 
 enum WispChannelBridge {
-    static let version = "3"
+    static let version = "4"
     static let serviceName = "wisp-channel-bridge"
     static let httpPort = 39281
 
@@ -226,11 +226,13 @@ enum WispChannelBridge {
     PORT = 39281
     BASE_DIR = Path.home() / ".wisp" / "channel-bridge"
     CHATS_DIR = BASE_DIR / "chats"
+    ROUTES_PATH = BASE_DIR / "routes.json"
     SECRET_PATH = BASE_DIR / "bridge_secret"
     CLAUDE_TOKEN_PATH = BASE_DIR / "claude_oauth_token"
     HELPER_PATH = BASE_DIR / "channel.py"
     SSE_POLL_INTERVAL = 0.25
     SSE_HEARTBEAT_SECONDS = 10
+    BRIDGE_PATHS = {"/message", "/interrupt", "/status", "/events", "/routes"}
     ANSI_CSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
     ANSI_OSC_RE = re.compile(r"\x1b\].*?(?:\x07|\x1b\\)")
     ANSI_SINGLE_RE = re.compile(r"\x1b[@-Z\\-_]")
@@ -313,6 +315,148 @@ enum WispChannelBridge {
             return dict(default or {})
 
 
+    # --- Route store -----------------------------------------------------------
+
+    ROUTES: list[dict] = []
+
+
+    def load_routes() -> None:
+        global ROUTES
+        if ROUTES_PATH.exists():
+            try:
+                with ROUTES_PATH.open("r", encoding="utf-8") as f:
+                    ROUTES = json.load(f)
+            except Exception:
+                ROUTES = []
+        else:
+            ROUTES = []
+
+
+    def save_routes() -> None:
+        atomic_write_text(ROUTES_PATH, json.dumps(ROUTES, sort_keys=True))
+
+
+    def match_route(path: str) -> tuple[dict, str] | None:
+        """Return (route, stripped_path) for the longest matching prefix, or None."""
+        best: dict | None = None
+        best_prefix = ""
+        for route in ROUTES:
+            prefix = route.get("prefix", "")
+            if prefix == "/":
+                if best is None:
+                    best = route
+                    best_prefix = prefix
+            elif path == prefix or path.startswith(prefix + "/"):
+                if len(prefix) > len(best_prefix):
+                    best = route
+                    best_prefix = prefix
+        if best is None:
+            return None
+        if best_prefix == "/":
+            stripped = path
+        else:
+            stripped = path[len(best_prefix):]
+            if not stripped:
+                stripped = "/"
+        return best, stripped
+
+
+    # --- CLAUDE.md injection --------------------------------------------------
+
+    CLAUDE_MD_START = "<!-- wisp-bridge-start -->"
+    CLAUDE_MD_END = "<!-- wisp-bridge-end -->"
+
+    CLAUDE_MD_SECTION = "\n".join([
+        "<!-- wisp-bridge-start -->",
+        "## HTTP Services (Wisp Bridge)",
+        "",
+        "This sprite's public URL routes through the Wisp channel bridge. To expose an HTTP service:",
+        "",
+        "1. Start your server on any port (e.g. `python3 -m http.server 3000`)",
+        "2. Register the route with the bridge:",
+        "   ```bash",
+        "   SECRET=$(cat ~/.wisp/channel-bridge/bridge_secret)",
+        "   curl -X POST http://localhost:39281/routes \\\\",
+        "     -H \"X-Wisp-Bridge-Key: $SECRET\" \\\\",
+        "     -H \"Content-Type: application/json\" \\\\",
+        "     -d '{\"prefix\": \"/\", \"port\": 3000}'",
+        "   ```",
+        "3. Your service is now accessible at the sprite's public URL.",
+        "",
+        "Multiple routes are supported. Longest prefix wins:",
+        "```bash",
+        "curl -X POST http://localhost:39281/routes \\\\",
+        "  -H \"X-Wisp-Bridge-Key: $SECRET\" \\\\",
+        "  -H \"Content-Type: application/json\" \\\\",
+        "  -d '{\"prefix\": \"/api\", \"port\": 4000}'",
+        "```",
+        "",
+        "Prefixes are stripped: a request to `/api/users` with prefix `/api` proxies to `localhost:4000/users`.",
+        "",
+        "To list routes: `GET /routes`",
+        "To remove a route: `DELETE /routes` with `{\"prefix\": \"/api\"}`",
+        "",
+        "Reserved paths (cannot be registered): /message, /interrupt, /status, /events, /routes",
+        "<!-- wisp-bridge-end -->",
+    ])
+
+
+    def ensure_claude_md(working_directory: str) -> None:
+        claude_md = Path(working_directory) / "CLAUDE.md"
+        if claude_md.exists():
+            content = claude_md.read_text(encoding="utf-8")
+            if CLAUDE_MD_START in content and CLAUDE_MD_END in content:
+                before = content[: content.index(CLAUDE_MD_START)]
+                after = content[content.index(CLAUDE_MD_END) + len(CLAUDE_MD_END) :]
+                content = before + CLAUDE_MD_SECTION + after
+            else:
+                content = content.rstrip() + "\n\n" + CLAUDE_MD_SECTION + "\n"
+        else:
+            content = CLAUDE_MD_SECTION + "\n"
+        atomic_write_text(claude_md, content)
+
+
+    # --- Reverse proxy --------------------------------------------------------
+
+    def proxy_request(handler: BaseHTTPRequestHandler, method: str) -> None:
+        parsed = urlparse(handler.path)
+        result = match_route(parsed.path)
+        if result is None:
+            raise BridgeError(404, "Not found")
+        route, stripped = result
+        port = route["port"]
+        target_path = stripped
+        if parsed.query:
+            target_path += "?" + parsed.query
+        content_length = int(handler.headers.get("Content-Length", "0"))
+        body = handler.rfile.read(content_length) if content_length > 0 else None
+        try:
+            import http.client
+            conn = http.client.HTTPConnection("localhost", port, timeout=30)
+            fwd_headers = {}
+            for key in handler.headers:
+                lower = key.lower()
+                if lower in ("host", "x-wisp-bridge-key"):
+                    continue
+                fwd_headers[key] = handler.headers[key]
+            conn.request(method, target_path, body=body, headers=fwd_headers)
+            resp = conn.getresponse()
+            handler.send_response(resp.status)
+            hop_by_hop = {"connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade"}
+            for key, value in resp.getheaders():
+                if key.lower() not in hop_by_hop:
+                    handler.send_header(key, value)
+            handler.end_headers()
+            while True:
+                chunk = resp.read(8192)
+                if not chunk:
+                    break
+                handler.wfile.write(chunk)
+            conn.close()
+        except (ConnectionRefusedError, OSError) as exc:
+            raise BridgeError(502, f"Bad gateway: upstream on port {port} unreachable") from exc
+
+
     def ensure_claude_project_config(
         working_directory: str,
         chat_dir: Path,
@@ -334,6 +478,7 @@ enum WispChannelBridge {
             },
         }
         atomic_write_text(settings_path, json.dumps(settings, sort_keys=True))
+        ensure_claude_md(working_directory)
 
 
     def strip_terminal_control(value: str) -> str:
@@ -833,10 +978,16 @@ enum WispChannelBridge {
         def log_message(self, format: str, *args) -> None:  # noqa: A003
             log(format % args)
 
+        def _is_bridge_path(self, path: str) -> bool:
+            return path in BRIDGE_PATHS
+
         def do_POST(self) -> None:  # noqa: N802
             try:
-                require_secret(self)
                 parsed = urlparse(self.path)
+                if not self._is_bridge_path(parsed.path):
+                    proxy_request(self, "POST")
+                    return
+                require_secret(self)
                 if parsed.path == "/message":
                     body = parse_json_body(self)
                     if not body.get("chat_id") or not body.get("text"):
@@ -881,6 +1032,23 @@ enum WispChannelBridge {
                     )
                     return
 
+                if parsed.path == "/routes":
+                    body = parse_json_body(self)
+                    prefix = body.get("prefix", "").rstrip("/") or "/"
+                    port = body.get("port")
+                    if not port or not isinstance(port, int):
+                        raise BridgeError(400, "port (integer) is required")
+                    if prefix in BRIDGE_PATHS:
+                        raise BridgeError(
+                            400, f"prefix {prefix} conflicts with a reserved bridge path"
+                        )
+                    with STATE_LOCK:
+                        ROUTES[:] = [r for r in ROUTES if r["prefix"] != prefix]
+                        ROUTES.append({"prefix": prefix, "port": port})
+                        save_routes()
+                    send_json(self, 201, {"ok": True, "prefix": prefix, "port": port})
+                    return
+
                 raise BridgeError(404, "Not found")
             except BridgeError as exc:
                 send_json(self, exc.status, {"error": exc.message})
@@ -890,8 +1058,11 @@ enum WispChannelBridge {
 
         def do_GET(self) -> None:  # noqa: N802
             try:
-                require_secret(self)
                 parsed = urlparse(self.path)
+                if not self._is_bridge_path(parsed.path):
+                    proxy_request(self, "GET")
+                    return
+                require_secret(self)
                 query = parse_qs(parsed.query)
 
                 if parsed.path == "/status":
@@ -908,6 +1079,10 @@ enum WispChannelBridge {
                     self.stream_events(str(chat_id))
                     return
 
+                if parsed.path == "/routes":
+                    send_json(self, 200, {"routes": list(ROUTES)})
+                    return
+
                 raise BridgeError(404, "Not found")
             except BridgeError as exc:
                 send_json(self, exc.status, {"error": exc.message})
@@ -915,6 +1090,67 @@ enum WispChannelBridge {
                 return
             except Exception as exc:  # pragma: no cover - defensive server guard
                 log(f"Unhandled GET error: {exc}")
+                send_json(self, 500, {"error": "Internal server error"})
+
+        def do_DELETE(self) -> None:  # noqa: N802
+            try:
+                parsed = urlparse(self.path)
+                if not self._is_bridge_path(parsed.path):
+                    proxy_request(self, "DELETE")
+                    return
+                require_secret(self)
+                if parsed.path == "/routes":
+                    body = parse_json_body(self)
+                    prefix = body.get("prefix", "").rstrip("/") or "/"
+                    with STATE_LOCK:
+                        ROUTES[:] = [r for r in ROUTES if r["prefix"] != prefix]
+                        save_routes()
+                    send_json(self, 200, {"ok": True})
+                    return
+                raise BridgeError(404, "Not found")
+            except BridgeError as exc:
+                send_json(self, exc.status, {"error": exc.message})
+            except Exception as exc:  # pragma: no cover - defensive server guard
+                log(f"Unhandled DELETE error: {exc}")
+                send_json(self, 500, {"error": "Internal server error"})
+
+        def do_PUT(self) -> None:  # noqa: N802
+            try:
+                parsed = urlparse(self.path)
+                if not self._is_bridge_path(parsed.path):
+                    proxy_request(self, "PUT")
+                    return
+                raise BridgeError(404, "Not found")
+            except BridgeError as exc:
+                send_json(self, exc.status, {"error": exc.message})
+            except Exception as exc:  # pragma: no cover - defensive server guard
+                log(f"Unhandled PUT error: {exc}")
+                send_json(self, 500, {"error": "Internal server error"})
+
+        def do_PATCH(self) -> None:  # noqa: N802
+            try:
+                parsed = urlparse(self.path)
+                if not self._is_bridge_path(parsed.path):
+                    proxy_request(self, "PATCH")
+                    return
+                raise BridgeError(404, "Not found")
+            except BridgeError as exc:
+                send_json(self, exc.status, {"error": exc.message})
+            except Exception as exc:  # pragma: no cover - defensive server guard
+                log(f"Unhandled PATCH error: {exc}")
+                send_json(self, 500, {"error": "Internal server error"})
+
+        def do_HEAD(self) -> None:  # noqa: N802
+            try:
+                parsed = urlparse(self.path)
+                if not self._is_bridge_path(parsed.path):
+                    proxy_request(self, "HEAD")
+                    return
+                raise BridgeError(404, "Not found")
+            except BridgeError as exc:
+                send_json(self, exc.status, {"error": exc.message})
+            except Exception as exc:  # pragma: no cover - defensive server guard
+                log(f"Unhandled HEAD error: {exc}")
                 send_json(self, 500, {"error": "Internal server error"})
 
         def stream_events(self, chat_id: str) -> None:
@@ -959,6 +1195,8 @@ enum WispChannelBridge {
 
     def main() -> None:
         ensure_base_dirs()
+        load_routes()
+        log(f"Loaded {len(ROUTES)} route(s)")
         server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
         log(f"Listening on :{PORT}")
         server.serve_forever()
