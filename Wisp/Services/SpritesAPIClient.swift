@@ -28,6 +28,7 @@ struct ChannelBridgeMessageRequest: Codable, Sendable, Equatable {
     let sessionId: String?
     let model: String?
     let maxTurns: Int?
+    let claudeQuestionToolEnabled: Bool
     let customInstructions: String?
     let attachments: [String]
 
@@ -38,6 +39,7 @@ struct ChannelBridgeMessageRequest: Codable, Sendable, Equatable {
         case sessionId = "session_id"
         case model
         case maxTurns = "max_turns"
+        case claudeQuestionToolEnabled = "claude_question_tool_enabled"
         case customInstructions = "custom_instructions"
         case attachments
     }
@@ -741,8 +743,8 @@ final class SpritesAPIClient {
         spriteName: String,
         serviceName: String,
         request serviceRequest: ServiceRequest
-    ) async throws -> ServiceInfo {
-        try await request(
+    ) async throws {
+        try await streamingRequest(
             method: "PUT",
             path: "/sprites/\(spriteName)/services/\(serviceName)",
             body: serviceRequest

@@ -176,7 +176,7 @@ enum ClaudeQuestionTool {
 }
 
 enum WispChannelBridge {
-    static let version = "4"
+    static let version = "6"
     static let serviceName = "wisp-channel-bridge"
     static let httpPort = 39281
 
@@ -462,6 +462,7 @@ enum WispChannelBridge {
         chat_dir: Path,
         chat_id: str,
         server_name: str,
+        ask_user_enabled: bool,
     ) -> None:
         settings_path = claude_settings_path()
         settings = read_json(settings_path, default={})
@@ -477,6 +478,16 @@ enum WispChannelBridge {
                 "WISP_CHAT_ID": chat_id,
             },
         }
+        if ask_user_enabled:
+            mcp_servers["askUser"] = {
+                "command": "python3",
+                "args": ["/home/sprite/.wisp/claude-question/server.py"],
+                "env": {
+                    "WISP_SESSION_ID": chat_id,
+                },
+            }
+        else:
+            mcp_servers.pop("askUser", None)
         atomic_write_text(settings_path, json.dumps(settings, sort_keys=True))
         ensure_claude_md(working_directory)
 
@@ -489,6 +500,7 @@ enum WispChannelBridge {
 
 
     def pump_pty_output(master_fd: int, chat_id: str, stdout_handle) -> None:
+        accepted_theme = False
         accepted_trust = False
         accepted_dev_channels = False
         accepted_bypass = False
@@ -511,6 +523,15 @@ enum WispChannelBridge {
                     (prompt_buffer + chunk.decode("utf-8", errors="ignore"))[-8000:]
                 )
                 compact_buffer = re.sub(r"\s+", "", prompt_buffer)
+
+                if (
+                    not accepted_theme
+                    and "Choosethetextstyle" in compact_buffer
+                    and "Darkmode" in compact_buffer
+                ):
+                    os.write(master_fd, b"\r")
+                    accepted_theme = True
+                    log(f"Accepted theme prompt for chat {chat_id}")
 
                 if (
                     not accepted_trust
@@ -553,6 +574,8 @@ enum WispChannelBridge {
             "pid": None,
             "working_directory": None,
             "model": None,
+            "max_turns": None,
+            "claude_question_tool_enabled": False,
             "custom_instructions": None,
             "busy": False,
             "activity": None,
@@ -702,6 +725,16 @@ enum WispChannelBridge {
             resume_args = ["--session-id", session_id]
 
         model = request.get("model") or state.get("model")
+        max_turns = (
+            request["max_turns"]
+            if "max_turns" in request
+            else state.get("max_turns")
+        )
+        ask_user_enabled = (
+            bool(request["claude_question_tool_enabled"])
+            if "claude_question_tool_enabled" in request
+            else bool(state.get("claude_question_tool_enabled"))
+        )
         custom_instructions = request.get("custom_instructions") or state.get("custom_instructions")
 
         env = os.environ.copy()
@@ -717,7 +750,13 @@ enum WispChannelBridge {
             log(f"No uploaded Claude token for chat {request['chat_id']}; using sprite-local Claude auth")
 
         server_name = channel_server_name(request["chat_id"])
-        ensure_claude_project_config(working_directory, chat_dir, request["chat_id"], server_name)
+        ensure_claude_project_config(
+            working_directory,
+            chat_dir,
+            request["chat_id"],
+            server_name,
+            ask_user_enabled,
+        )
 
         command = [
             "claude",
@@ -731,6 +770,10 @@ enum WispChannelBridge {
 
         if model:
             command.extend(["--model", model])
+        if max_turns is not None:
+            command.extend(["--max-turns", str(max_turns)])
+        if ask_user_enabled:
+            command.extend(["--disallowedTools", "AskUserQuestion"])
         if custom_instructions:
             command.extend(["--append-system-prompt", custom_instructions])
 
@@ -760,6 +803,8 @@ enum WispChannelBridge {
 
         state["pid"] = process.pid
         state["model"] = model
+        state["max_turns"] = max_turns
+        state["claude_question_tool_enabled"] = ask_user_enabled
         state["custom_instructions"] = custom_instructions
         state["last_synced_at"] = time.time()
         log(f"Started Claude for chat {request['chat_id']} pid={process.pid}")
@@ -903,6 +948,13 @@ enum WispChannelBridge {
             "timestamp": time.time(),
         }
 
+        state["model"] = request.get("model")
+        state["max_turns"] = request.get("max_turns")
+        state["claude_question_tool_enabled"] = bool(
+            request.get("claude_question_tool_enabled", False)
+        )
+        state["custom_instructions"] = request.get("custom_instructions")
+
         message_path = inbox_dir(chat_dir) / f"{int(time.time() * 1000)}-{uuid.uuid4().hex}.json"
         atomic_write_json(message_path, inbox_message)
 
@@ -998,6 +1050,10 @@ enum WispChannelBridge {
                         "working_directory": body.get("working_directory"),
                         "session_id": body.get("session_id"),
                         "model": body.get("model"),
+                        "max_turns": body.get("max_turns"),
+                        "claude_question_tool_enabled": bool(
+                            body.get("claude_question_tool_enabled", False)
+                        ),
                         "custom_instructions": body.get("custom_instructions"),
                         "attachments": body.get("attachments") or [],
                     }
