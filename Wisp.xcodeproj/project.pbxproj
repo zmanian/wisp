@@ -9,14 +9,17 @@
 /* Begin PBXBuildFile section */
 		0418F9D619251B7E6DB0276F /* SpriteRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA2E2130ACB1E1A289B9565 /* SpriteRowView.swift */; };
 		0DCFEEB6A976CC63316F4535 /* ChatMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9BC746AE628458445D34FCE /* ChatMessageView.swift */; };
+		0DFF41BB14AC3922E95DF781 /* WorktreeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C469FD20E7B004F78FC5072A /* WorktreeTests.swift */; };
 		252341DD690F4B3DA4E378BE /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE09C632E049BE561A702FDF /* ChatMessage.swift */; };
+		255916E89EB30BF538D0B1B8 /* ShareExtensionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 840987C6EBF7F6F0DAC079FC /* ShareExtensionViewController.swift */; };
 		2A18611EA392DA2BFFE74250 /* ClaudeStreamEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC36140C33E21A73C41606C6 /* ClaudeStreamEvent.swift */; };
 		3855BDFB5819B6D35F57ED9E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 099181E9B8BFE6F3475C5D36 /* Assets.xcassets */; };
 		3A36571818CB2EBA1ED78500 /* ToolInputDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB04F3FB6C647DE1F6DC0FD0 /* ToolInputDetailView.swift */; };
 		4FE7C138A35A53B4C38BEF98 /* ClaudeStreamParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8F1378232DC7FA71A8B5444 /* ClaudeStreamParser.swift */; };
-		AA33BB44CC55DD66EE77FF02 /* ChatSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA33BB44CC55DD66EE77FF01 /* ChatSessionManager.swift */; };
+		55C2568755823E029D8EF8DC /* WispActivityWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DBACD8E5F515CDD8136602A /* WispActivityWidgetBundle.swift */; };
 		5A1F582DDCBB994013E4BA2E /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B99AA33329D50DEDB7343B7 /* DashboardView.swift */; };
 		5ABE241326BF34FF2E3C3E51 /* CreateSpriteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA1634863D8543868BA11B02 /* CreateSpriteSheet.swift */; };
+		5BBED47183FBB050699C6379 /* WispShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 14713566DD3160237940036A /* WispShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, CodeSignOnCopy, ); }; };
 		61CBE460AC96CBE6BF8AF0B0 /* SpriteSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6BE6E0D68BBB35DE56600E1 /* SpriteSession.swift */; };
 		6445AB5A4723D213CFDF0460 /* JSONValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3893EEF3ADDA05DF7A9C0909 /* JSONValue.swift */; };
 		6D0E6C856F514B6E4F81313C /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 616F53154EEA09CE101C7703 /* AppError.swift */; };
@@ -24,6 +27,8 @@
 		735DA590AAB4728F7A8B5037 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8C4C3A1F2B2D57313431E50 /* Extensions.swift */; };
 		760347D84B9D49623B0A5BC5 /* AssistantMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39E3CEEE606D9AFF4265AB76 /* AssistantMessageView.swift */; };
 		7B3C91E5A8D2F06473E1CA59 /* SpriteTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A7E1B29C3F508A1E6B7D43 /* SpriteTabPicker.swift */; };
+		7B8D9F09B366453B7033BBB7 /* WispActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000B /* WispActivityAttributes.swift */; };
+		7C650C1DF049AC74F7FB3C80 /* ShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB42C30D5BA2FE5F3850B37C /* ShareView.swift */; };
 		7F8737574DF6D523DE958341 /* CheckpointsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EFC5211F749D2051DC28E77 /* CheckpointsView.swift */; };
 		8F72503BCFF96CEF02334CA8 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540685D9D567596E24E4EF82 /* ChatViewModel.swift */; };
 		974996B0FB4D30828E89DD21 /* SpriteOverviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9BFD0F0AC39C136C9E828A /* SpriteOverviewViewModel.swift */; };
@@ -39,12 +44,14 @@
 		A21BF0D8D910819DD5591E88 /* ExecSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2554BB4DE8EC315CA48767BF /* ExecSession.swift */; };
 		A610B5413A578D4AA424595D /* ToolUseCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A278B4716095105A7024CF8 /* ToolUseCardView.swift */; };
 		A92BE24BEAF80FF31B4ACA00 /* CheckpointsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0AD6D912964E32FC8685EA3 /* CheckpointsViewModel.swift */; };
-		AA3100BB00CC00DD00EE0001 /* QuickActionsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3100BB00CC00DD00EE0002 /* QuickActionsViewModel.swift */; };
-		AA3200BB00CC00DD00EE0001 /* BashQuickViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3200BB00CC00DD00EE0002 /* BashQuickViewModel.swift */; };
-		AA3300BB00CC00DD00EE0001 /* QuickActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3300BB00CC00DD00EE0002 /* QuickActionsView.swift */; };
-		AA3500BB00CC00DD00EE0001 /* BashQuickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3500BB00CC00DD00EE0002 /* BashQuickView.swift */; };
-		AA3700BB00CC00DD00EE0001 /* BashQuickViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3700BB00CC00DD00EE0002 /* BashQuickViewModelTests.swift */; };
-		AA3800BB00CC00DD00EE0001 /* ChatSessionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3800BB00CC00DD00EE0002 /* ChatSessionManagerTests.swift */; };
+		AA0011BB22CC33DD44EE0002 /* ShellEscaping.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0001 /* ShellEscaping.swift */; };
+		AA0011BB22CC33DD44EE0006 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0005 /* LiveActivityManager.swift */; };
+		AA0011BB22CC33DD44EE000C /* WispActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000B /* WispActivityAttributes.swift */; };
+		AA0011BB22CC33DD44EE000E /* ServicesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000D /* ServicesViewModel.swift */; };
+		AA0011BB22CC33DD44EE0018 /* ScreenshotPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0017 /* ScreenshotPreviews.swift */; };
+		AA0011BB22CC33DD44EE001C /* ServiceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE001B /* ServiceDetailView.swift */; };
+		AA0011BB22CC33DD44EE001E /* ServiceRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE001D /* ServiceRowView.swift */; };
+		AA0011BB22CC33DD44EE0020 /* ServicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE001F /* ServicesView.swift */; };
 		AA00BB11CC22DD3300000001 /* WispAskCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00BB11CC22DD3300000002 /* WispAskCard.swift */; };
 		AA11BB22CC33DD44EE55FF02 /* GitHubDeviceFlowClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF01 /* GitHubDeviceFlowClient.swift */; };
 		AA11BB22CC33DD44EE55FF04 /* GitHubDeviceFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF03 /* GitHubDeviceFlowView.swift */; };
@@ -52,12 +59,23 @@
 		AA11BB22CC33DD44EE55FF08 /* GitHubDeviceFlowClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF07 /* GitHubDeviceFlowClientTests.swift */; };
 		AA11BB22CC33DD44EE55FF0A /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF09 /* AppConfig.swift */; };
 		AA22BB33CC44DD55EE66FF01 /* ClaudeQuestionTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA22BB33CC44DD55EE66FF02 /* ClaudeQuestionTool.swift */; };
+		AA3100BB00CC00DD00EE0001 /* QuickActionsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3100BB00CC00DD00EE0002 /* QuickActionsViewModel.swift */; };
+		AA3200BB00CC00DD00EE0001 /* BashQuickViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3200BB00CC00DD00EE0002 /* BashQuickViewModel.swift */; };
+		AA3300BB00CC00DD00EE0001 /* QuickActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3300BB00CC00DD00EE0002 /* QuickActionsView.swift */; };
+		AA33BB44CC55DD66EE77FF02 /* ChatSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA33BB44CC55DD66EE77FF01 /* ChatSessionManager.swift */; };
+		AA3500BB00CC00DD00EE0001 /* BashQuickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3500BB00CC00DD00EE0002 /* BashQuickView.swift */; };
+		AA3700BB00CC00DD00EE0001 /* BashQuickViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3700BB00CC00DD00EE0002 /* BashQuickViewModelTests.swift */; };
+		AA3800BB00CC00DD00EE0001 /* ChatSessionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3800BB00CC00DD00EE0002 /* ChatSessionManagerTests.swift */; };
 		AABB0011223344556677F002 /* ClaudeStreamParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0011223344556677F001 /* ClaudeStreamParserTests.swift */; };
 		AABB0011223344556677F004 /* JSONValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0011223344556677F003 /* JSONValueTests.swift */; };
 		AABB0011223344556677F006 /* ClaudeStreamEventTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0011223344556677F005 /* ClaudeStreamEventTests.swift */; };
 		AABB0011223344556677F008 /* APIModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0011223344556677F007 /* APIModelTests.swift */; };
 		AABB0011223344556677F00A /* AppErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0011223344556677F009 /* AppErrorTests.swift */; };
 		AABB0011223344556677F00C /* ExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0011223344556677F00B /* ExtensionsTests.swift */; };
+		AABB0011223344556677F00D /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18C5B2624EA65CC834E1863D /* AppIntents.framework */; };
+		AEEB5B53920646FAB2EC50D4 /* WispActivityWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7E0DC7EAE5D5CA548006D98A /* WispActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, CodeSignOnCopy, ); }; };
+		AFB3E5EE03E5B84EE1F0721A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18C5B2624EA65CC834E1863C /* Foundation.framework */; };
+		AFB3E5EE03E5B84EE1F0721B /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18C5B2624EA65CC834E1863D /* AppIntents.framework */; };
 		AFD1F0F805631C7AE9679AC7 /* SpritesAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01E14B5D87751457C549C17 /* SpritesAPIClient.swift */; };
 		B1447250DC51EA126B6387DB /* ExecMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EE32C593901CBCD7DE899D3 /* ExecMessage.swift */; };
 		B2C3D4E5F6A70819304B5C6E /* SpriteChatMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A70819304B5C6D /* SpriteChatMigration.swift */; };
@@ -74,10 +92,10 @@
 		C3D82F1A7E4B9A0561FED234 /* SpriteNavigationPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E74C3B8D2F0C9547B6A891 /* SpriteNavigationPanel.swift */; };
 		C4D5E6F7A8B90A41637E8FA2 /* CheckpointMarkerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */; };
 		C575C7232C5FCA1A3F18A9D8 /* WispApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9CB342E72F33408AA0CB63 /* WispApp.swift */; };
-		SHARE001122334455667788 /* ShareIntentCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHARE001122334455667700 /* ShareIntentCoordinator.swift */; };
 		C6D4E28F9B0ABCD112E3F405 /* ClaudeModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C3D17E8A9FABC001D2E3F4 /* ClaudeModelTests.swift */; };
 		C6F4D8ADAC992544E82FC4D0 /* ChatStatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42C4A8D129C538233C34B2A6 /* ChatStatusBar.swift */; };
 		C77F2C1E11DECAE31E0F5ECC /* SpriteOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22353867496BED816814F410 /* SpriteOverviewView.swift */; };
+		CB1DB53D95F10DC969BDC8BF /* WispLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AED3A89CFE7097B8CDECC6C /* WispLiveActivity.swift */; };
 		CC11DD22EE33FF4400110001 /* ChatAttachmentButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11DD22EE33FF4400110002 /* ChatAttachmentButton.swift */; };
 		CC11DD22EE33FF4400110003 /* SpriteFileBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11DD22EE33FF4400110004 /* SpriteFileBrowserView.swift */; };
 		CC11DD22EE33FF4400110006 /* FileEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11DD22EE33FF4400110005 /* FileEntryTests.swift */; };
@@ -86,6 +104,9 @@
 		D4E5F6A7B8C90A31526D7E90 /* ChatSwitcherSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C90A31526D7E8F /* ChatSwitcherSheet.swift */; };
 		D4E5F6A7B8C9D0E1F2A3B4C5 /* InAppBrowserCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* InAppBrowserCoordinator.swift */; };
 		D5E6F7A8B9C00B52748FA0B2 /* AutoCheckpointTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */; };
+		DD0011AA22BB33CC44EE0102 /* QuickMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0011AA22BB33CC44EE0101 /* QuickMessage.swift */; };
+		DD0011AA22BB33CC44EE0104 /* QuickMessagesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0011AA22BB33CC44EE0103 /* QuickMessagesSettingsView.swift */; };
+		DD0011AA22BB33CC44EE0106 /* QuickMessagePickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0011AA22BB33CC44EE0105 /* QuickMessagePickerSheet.swift */; };
 		DD11EE22FF334455AA66BB02 /* ServiceTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11EE22FF334455AA66BB01 /* ServiceTypes.swift */; };
 		DD11EE22FF334455AA66BB04 /* ServiceTypesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11EE22FF334455AA66BB03 /* ServiceTypesTests.swift */; };
 		DD22EE33FF4400110007AA01 /* AttachmentChipsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD22EE33FF4400110007AA02 /* AttachmentChipsView.swift */; };
@@ -94,8 +115,9 @@
 		E1F2A3B4C5D6E7F800000014 /* UnifiedDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F800000003 /* UnifiedDiffView.swift */; };
 		E5F6A7B8C9D00B42637E8F91 /* SpriteChatListViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F6A7B8C9D00B42637E8F90 /* SpriteChatListViewModelTests.swift */; };
 		E5F6A7B8C9D0E1F2A3B4C5D6 /* WebViewPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7B8C9D0E1F2A3 /* WebViewPage.swift */; };
+		E6B719CBF70833780423C0CC /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18C5B2624EA65CC834E1863C /* Foundation.framework */; };
+		E6B719CBF70833780423C0CD /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18C5B2624EA65CC834E1863D /* AppIntents.framework */; };
 		E7F8A9B0C1D2E3F405A6B7C2 /* ChatNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F8A9B0C1D2E3F405A6B7C1 /* ChatNameTests.swift */; };
-		0DFF41BB14AC3922E95DF781 /* WorktreeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C469FD20E7B004F78FC5072A /* WorktreeTests.swift */; };
 		EE11FF22AA33BB4400220001 /* PasteInterceptingTextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE11FF22AA33BB4400220002 /* PasteInterceptingTextInput.swift */; };
 		EE22FF334455AA66BB770002 /* ExecSessionURLTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE22FF334455AA66BB770001 /* ExecSessionURLTests.swift */; };
 		F32DE1DDC53913E28250E70D /* UserBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45BC8CB419377B55A1D1F896 /* UserBubbleView.swift */; };
@@ -128,25 +150,30 @@
 		F6A7B8C9D0E10C53748F9002 /* SpriteChatMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A7B8C9D0E10C53748F9001 /* SpriteChatMigrationTests.swift */; };
 		F6A7B8C9D0E1F2A3B4C5D6E7 /* InAppBrowserSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F6A7B8C9D0E1F2A3B4 /* InAppBrowserSheet.swift */; };
 		F7A8B9C0D1E2F30415263748 /* PlanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A8B9C0D1E2F30415263749 /* PlanCardView.swift */; };
+		F90D15174A92A31532D1BD6D /* ShareViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BB9A6AB66BD4D81C4FD354C /* ShareViewModel.swift */; };
 		FC78F202B420DB2A1052C561 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A64C131D52B17EA7B36B1BE6 /* RootView.swift */; };
 		FE589FC5A8086E6958A363E1 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F643DCF84E0352A9F8D649 /* KeychainService.swift */; };
 		FF11AA22BB33CC44DD55EE02 /* ChatViewModelHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF11AA22BB33CC44DD55EE01 /* ChatViewModelHelpersTests.swift */; };
 		FF11AA22BB33CC44DD55EE04 /* ChatViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF11AA22BB33CC44DD55EE03 /* ChatViewModelTests.swift */; };
 		FFB48F025123550446943E29 /* SpriteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C849AF5732774C39968056 /* SpriteDetailView.swift */; };
-		AA0011BB22CC33DD44EE0002 /* ShellEscaping.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0001 /* ShellEscaping.swift */; };
-		AA0011BB22CC33DD44EE0006 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0005 /* LiveActivityManager.swift */; };
-		AA0011BB22CC33DD44EE000C /* WispActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000B /* WispActivityAttributes.swift */; };
-		AA0011BB22CC33DD44EE000E /* ServicesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE000D /* ServicesViewModel.swift */; };
-		AA0011BB22CC33DD44EE0018 /* ScreenshotPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE0017 /* ScreenshotPreviews.swift */; };
-		AA0011BB22CC33DD44EE001C /* ServiceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE001B /* ServiceDetailView.swift */; };
-		AA0011BB22CC33DD44EE001E /* ServiceRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE001D /* ServiceRowView.swift */; };
-		AA0011BB22CC33DD44EE0020 /* ServicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011BB22CC33DD44EE001F /* ServicesView.swift */; };
-		DD0011AA22BB33CC44EE0102 /* QuickMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0011AA22BB33CC44EE0101 /* QuickMessage.swift */; };
-		DD0011AA22BB33CC44EE0104 /* QuickMessagesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0011AA22BB33CC44EE0103 /* QuickMessagesSettingsView.swift */; };
-		DD0011AA22BB33CC44EE0106 /* QuickMessagePickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0011AA22BB33CC44EE0105 /* QuickMessagePickerSheet.swift */; };
+		SHARE001122334455667788 /* ShareIntentCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHARE001122334455667700 /* ShareIntentCoordinator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		0E6BA0E927FE87A311C9CEEA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2B79780F0B29692CEE165AFF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 48B4D77D62E5D0600E5E4622;
+			remoteInfo = WispShareExtension;
+		};
+		5C13CFDBD61FFF1EAFFB348D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2B79780F0B29692CEE165AFF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F3EF206361B17D30A119D934;
+			remoteInfo = WispActivityWidget;
+		};
 		AABB0011223344556677880D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2B79780F0B29692CEE165AFF /* Project object */;
@@ -156,10 +183,28 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		7374D06BB494087A3EAE7AB1 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5BBED47183FBB050699C6379 /* WispShareExtension.appex in Embed App Extensions */,
+				AEEB5B53920646FAB2EC50D4 /* WispActivityWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		099181E9B8BFE6F3475C5D36 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0B99AA33329D50DEDB7343B7 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		14713566DD3160237940036A /* WispShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WispShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		15F643DCF84E0352A9F8D649 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		18C5B2624EA65CC834E1863C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		18C5B2624EA65CC834E1863D /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/AppIntents.framework; sourceTree = DEVELOPER_DIR; };
 		22353867496BED816814F410 /* SpriteOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteOverviewView.swift; sourceTree = "<group>"; };
 		241DA350F74EECF3A998A903 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
 		2554BB4DE8EC315CA48767BF /* ExecSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecSession.swift; sourceTree = "<group>"; };
@@ -169,13 +214,18 @@
 		39E3CEEE606D9AFF4265AB76 /* AssistantMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantMessageView.swift; sourceTree = "<group>"; };
 		42C4A8D129C538233C34B2A6 /* ChatStatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStatusBar.swift; sourceTree = "<group>"; };
 		45BC8CB419377B55A1D1F896 /* UserBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserBubbleView.swift; sourceTree = "<group>"; };
+		4DBACD8E5F515CDD8136602A /* WispActivityWidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WispActivityWidgetBundle.swift; sourceTree = "<group>"; };
 		4FB02E9F26B9003B6E1DBE7C /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		540685D9D567596E24E4EF82 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		54C849AF5732774C39968056 /* SpriteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteDetailView.swift; sourceTree = "<group>"; };
+		5AED3A89CFE7097B8CDECC6C /* WispLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WispLiveActivity.swift; sourceTree = "<group>"; };
+		5BB9A6AB66BD4D81C4FD354C /* ShareViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareViewModel.swift; sourceTree = "<group>"; };
 		616F53154EEA09CE101C7703 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		7C308D530B9DAC21AD2A843B /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
+		7E0DC7EAE5D5CA548006D98A /* WispActivityWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WispActivityWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7EE32C593901CBCD7DE899D3 /* ExecMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecMessage.swift; sourceTree = "<group>"; };
 		82F0818DD437A77B57594574 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		840987C6EBF7F6F0DAC079FC /* ShareExtensionViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareExtensionViewController.swift; sourceTree = "<group>"; };
 		8A278B4716095105A7024CF8 /* ToolUseCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolUseCardView.swift; sourceTree = "<group>"; };
 		8EA2E2130ACB1E1A289B9565 /* SpriteRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteRowView.swift; sourceTree = "<group>"; };
 		9419236D77396D53BBCDB867 /* Wisp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wisp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -188,6 +238,14 @@
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* InAppBrowserCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppBrowserCoordinator.swift; sourceTree = "<group>"; };
 		A1E74C3B8D2F0C9547B6A891 /* SpriteNavigationPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteNavigationPanel.swift; sourceTree = "<group>"; };
 		A64C131D52B17EA7B36B1BE6 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		AA0011BB22CC33DD44EE0001 /* ShellEscaping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellEscaping.swift; sourceTree = "<group>"; };
+		AA0011BB22CC33DD44EE0005 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
+		AA0011BB22CC33DD44EE000B /* WispActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispActivityAttributes.swift; sourceTree = "<group>"; };
+		AA0011BB22CC33DD44EE000D /* ServicesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesViewModel.swift; sourceTree = "<group>"; };
+		AA0011BB22CC33DD44EE0017 /* ScreenshotPreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotPreviews.swift; sourceTree = "<group>"; };
+		AA0011BB22CC33DD44EE001B /* ServiceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDetailView.swift; sourceTree = "<group>"; };
+		AA0011BB22CC33DD44EE001D /* ServiceRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRowView.swift; sourceTree = "<group>"; };
+		AA0011BB22CC33DD44EE001F /* ServicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesView.swift; sourceTree = "<group>"; };
 		AA00BB11CC22DD3300000002 /* WispAskCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispAskCard.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE55FF01 /* GitHubDeviceFlowClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubDeviceFlowClient.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE55FF03 /* GitHubDeviceFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubDeviceFlowView.swift; sourceTree = "<group>"; };
@@ -195,6 +253,13 @@
 		AA11BB22CC33DD44EE55FF07 /* GitHubDeviceFlowClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubDeviceFlowClientTests.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE55FF09 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		AA22BB33CC44DD55EE66FF02 /* ClaudeQuestionTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeQuestionTool.swift; sourceTree = "<group>"; };
+		AA3100BB00CC00DD00EE0002 /* QuickActionsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsViewModel.swift; sourceTree = "<group>"; };
+		AA3200BB00CC00DD00EE0002 /* BashQuickViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashQuickViewModel.swift; sourceTree = "<group>"; };
+		AA3300BB00CC00DD00EE0002 /* QuickActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsView.swift; sourceTree = "<group>"; };
+		AA33BB44CC55DD66EE77FF01 /* ChatSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionManager.swift; sourceTree = "<group>"; };
+		AA3500BB00CC00DD00EE0002 /* BashQuickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashQuickView.swift; sourceTree = "<group>"; };
+		AA3700BB00CC00DD00EE0002 /* BashQuickViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashQuickViewModelTests.swift; sourceTree = "<group>"; };
+		AA3800BB00CC00DD00EE0002 /* ChatSessionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionManagerTests.swift; sourceTree = "<group>"; };
 		AABB001122334455667788AA /* WispTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WispTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AABB0011223344556677F001 /* ClaudeStreamParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeStreamParserTests.swift; sourceTree = "<group>"; };
 		AABB0011223344556677F003 /* JSONValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValueTests.swift; sourceTree = "<group>"; };
@@ -218,10 +283,10 @@
 		C1A0DE4B5F6E7A8293B4D5E6 /* ClaudeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModel.swift; sourceTree = "<group>"; };
 		C3D4E5F6A7B80920415C6D7E /* SpriteChatListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteChatListViewModel.swift; sourceTree = "<group>"; };
 		C3D4E5F6A7B8C9D0E1F2A3B4 /* InAppBrowserSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppBrowserSheet.swift; sourceTree = "<group>"; };
+		C469FD20E7B004F78FC5072A /* WorktreeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorktreeTests.swift; sourceTree = "<group>"; };
 		C4D5E6F7A8B90A41637E8FA1 /* CheckpointMarkerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckpointMarkerView.swift; sourceTree = "<group>"; };
 		C8C4C3A1F2B2D57313431E50 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		C8F1378232DC7FA71A8B5444 /* ClaudeStreamParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeStreamParser.swift; sourceTree = "<group>"; };
-		AA33BB44CC55DD66EE77FF01 /* ChatSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionManager.swift; sourceTree = "<group>"; };
 		CC11DD22EE33FF4400110002 /* ChatAttachmentButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatAttachmentButton.swift; sourceTree = "<group>"; };
 		CC11DD22EE33FF4400110004 /* SpriteFileBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteFileBrowserView.swift; sourceTree = "<group>"; };
 		CC11DD22EE33FF4400110005 /* FileEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileEntryTests.swift; sourceTree = "<group>"; };
@@ -232,11 +297,14 @@
 		D5E6F7A8B9C00B52748FA0B1 /* AutoCheckpointTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoCheckpointTests.swift; sourceTree = "<group>"; };
 		D6BE6E0D68BBB35DE56600E1 /* SpriteSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteSession.swift; sourceTree = "<group>"; };
 		D9BC746AE628458445D34FCE /* ChatMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageView.swift; sourceTree = "<group>"; };
+		DB42C30D5BA2FE5F3850B37C /* ShareView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareView.swift; sourceTree = "<group>"; };
+		DD0011AA22BB33CC44EE0101 /* QuickMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickMessage.swift; sourceTree = "<group>"; };
+		DD0011AA22BB33CC44EE0103 /* QuickMessagesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickMessagesSettingsView.swift; sourceTree = "<group>"; };
+		DD0011AA22BB33CC44EE0105 /* QuickMessagePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickMessagePickerSheet.swift; sourceTree = "<group>"; };
 		DD11EE22FF334455AA66BB01 /* ServiceTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceTypes.swift; sourceTree = "<group>"; };
 		DD11EE22FF334455AA66BB03 /* ServiceTypesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceTypesTests.swift; sourceTree = "<group>"; };
 		DD22EE33FF4400110007AA02 /* AttachmentChipsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentChipsView.swift; sourceTree = "<group>"; };
 		DD9CB342E72F33408AA0CB63 /* WispApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispApp.swift; sourceTree = "<group>"; };
-		SHARE001122334455667700 /* ShareIntentCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareIntentCoordinator.swift; sourceTree = "<group>"; };
 		E01E14B5D87751457C549C17 /* SpritesAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpritesAPIClient.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000001 /* WispCodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispCodeHighlighter.swift; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F800000002 /* WispMarkdownTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispMarkdownTheme.swift; sourceTree = "<group>"; };
@@ -245,7 +313,6 @@
 		E55993FF41BDC8D0BD81C177 /* Sprite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sprite.swift; sourceTree = "<group>"; };
 		E5F6A7B8C9D00B42637E8F90 /* SpriteChatListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteChatListViewModelTests.swift; sourceTree = "<group>"; };
 		E7F8A9B0C1D2E3F405A6B7C1 /* ChatNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatNameTests.swift; sourceTree = "<group>"; };
-		C469FD20E7B004F78FC5072A /* WorktreeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorktreeTests.swift; sourceTree = "<group>"; };
 		EA1634863D8543868BA11B02 /* CreateSpriteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateSpriteSheet.swift; sourceTree = "<group>"; };
 		EE11FF22AA33BB4400220002 /* PasteInterceptingTextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteInterceptingTextInput.swift; sourceTree = "<group>"; };
 		EE22FF334455AA66BB770001 /* ExecSessionURLTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecSessionURLTests.swift; sourceTree = "<group>"; };
@@ -255,30 +322,24 @@
 		F7A8B9C0D1E2F30415263749 /* PlanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCardView.swift; sourceTree = "<group>"; };
 		FF11AA22BB33CC44DD55EE01 /* ChatViewModelHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModelHelpersTests.swift; sourceTree = "<group>"; };
 		FF11AA22BB33CC44DD55EE03 /* ChatViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModelTests.swift; sourceTree = "<group>"; };
-		AA3100BB00CC00DD00EE0002 /* QuickActionsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsViewModel.swift; sourceTree = "<group>"; };
-		AA3200BB00CC00DD00EE0002 /* BashQuickViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashQuickViewModel.swift; sourceTree = "<group>"; };
-		AA3300BB00CC00DD00EE0002 /* QuickActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsView.swift; sourceTree = "<group>"; };
-		AA3500BB00CC00DD00EE0002 /* BashQuickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashQuickView.swift; sourceTree = "<group>"; };
-		AA3700BB00CC00DD00EE0002 /* BashQuickViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashQuickViewModelTests.swift; sourceTree = "<group>"; };
-		AA3800BB00CC00DD00EE0002 /* ChatSessionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionManagerTests.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE0001 /* ShellEscaping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellEscaping.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE0005 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE000B /* WispActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WispActivityAttributes.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE000D /* ServicesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesViewModel.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE0017 /* ScreenshotPreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotPreviews.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE001B /* ServiceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDetailView.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE001D /* ServiceRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRowView.swift; sourceTree = "<group>"; };
-		AA0011BB22CC33DD44EE001F /* ServicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesView.swift; sourceTree = "<group>"; };
-		DD0011AA22BB33CC44EE0101 /* QuickMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickMessage.swift; sourceTree = "<group>"; };
-		DD0011AA22BB33CC44EE0103 /* QuickMessagesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickMessagesSettingsView.swift; sourceTree = "<group>"; };
-		DD0011AA22BB33CC44EE0105 /* QuickMessagePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickMessagePickerSheet.swift; sourceTree = "<group>"; };
+		SHARE001122334455667700 /* ShareIntentCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareIntentCoordinator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		02F52449933A46FEC62ABE6E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E6B719CBF70833780423C0CD /* AppIntents.framework in Frameworks */,
+				E6B719CBF70833780423C0CC /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		4B2C4E0585F6B4BFE384E0F2 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFB3E5EE03E5B84EE1F0721B /* AppIntents.framework in Frameworks */,
 				9CAC809156C87B9CBD77F706 /* MarkdownUI in Frameworks */,
 				F3A2B3C4D5E6F7A8B9C00001 /* SwiftTreeSitter in Frameworks */,
 				F3A2B3C4D5E6F7A8B9C00002 /* TreeSitterSwift in Frameworks */,
@@ -310,12 +371,30 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AABB0011223344556677F00D /* AppIntents.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E443D0895D624DE5BA55E27F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AFB3E5EE03E5B84EE1F0721A /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0BF44626D50103E40BB09739 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				18C5B2624EA65CC834E1863D /* AppIntents.framework */,
+				18C5B2624EA65CC834E1863C /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
 		13541EF56061CE5B4A38DDFA /* Checkpoints */ = {
 			isa = PBXGroup;
 			children = (
@@ -371,6 +450,14 @@
 				DD9CB342E72F33408AA0CB63 /* WispApp.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		5A217649C42DDE2E135D1267 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				0BF44626D50103E40BB09739 /* iOS */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		674378BED3E5BC4D16DBB096 /* Utilities */ = {
@@ -459,6 +546,16 @@
 			path = ViewModels;
 			sourceTree = "<group>";
 		};
+		A1124B31413EC161151227F3 /* WispActivityWidget */ = {
+			isa = PBXGroup;
+			children = (
+				4DBACD8E5F515CDD8136602A /* WispActivityWidgetBundle.swift */,
+				5AED3A89CFE7097B8CDECC6C /* WispLiveActivity.swift */,
+			);
+			name = WispActivityWidget;
+			path = WispActivityWidget;
+			sourceTree = "<group>";
+		};
 		A5E41B8F9DACBEC637F8192A /* Settings */ = {
 			isa = PBXGroup;
 			children = (
@@ -476,6 +573,33 @@
 				B2C3D4E5F6A7B8C9D0E1F2A3 /* WebViewPage.swift */,
 			);
 			path = WebView;
+			sourceTree = "<group>";
+		};
+		AA0011BB22CC33DD44EE0022 /* Previews */ = {
+			isa = PBXGroup;
+			children = (
+				AA0011BB22CC33DD44EE0017 /* ScreenshotPreviews.swift */,
+			);
+			path = Previews;
+			sourceTree = "<group>";
+		};
+		AA0011BB22CC33DD44EE0023 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				AA0011BB22CC33DD44EE001B /* ServiceDetailView.swift */,
+				AA0011BB22CC33DD44EE001D /* ServiceRowView.swift */,
+				AA0011BB22CC33DD44EE001F /* ServicesView.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		AA3600BB00CC00DD00EE0001 /* QuickActions */ = {
+			isa = PBXGroup;
+			children = (
+				AA3300BB00CC00DD00EE0002 /* QuickActionsView.swift */,
+				AA3500BB00CC00DD00EE0002 /* BashQuickView.swift */,
+			);
+			path = QuickActions;
 			sourceTree = "<group>";
 		};
 		AABB001122334455667788EE /* WispTests */ = {
@@ -521,15 +645,6 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		AA3600BB00CC00DD00EE0001 /* QuickActions */ = {
-			isa = PBXGroup;
-			children = (
-				AA3300BB00CC00DD00EE0002 /* QuickActionsView.swift */,
-				AA3500BB00CC00DD00EE0002 /* BashQuickView.swift */,
-			);
-			path = QuickActions;
-			sourceTree = "<group>";
-		};
 		B22C752D93810C377FF981DD /* Chat */ = {
 			isa = PBXGroup;
 			children = (
@@ -567,6 +682,8 @@
 			children = (
 				9419236D77396D53BBCDB867 /* Wisp.app */,
 				AABB001122334455667788AA /* WispTests.xctest */,
+				14713566DD3160237940036A /* WispShareExtension.appex */,
+				7E0DC7EAE5D5CA548006D98A /* WispActivityWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -577,7 +694,21 @@
 				DB40982ED6D212CF23B3970B /* Wisp */,
 				AABB001122334455667788EE /* WispTests */,
 				B7756A2DAF10E6E2D9C5CA77 /* Products */,
+				BD9120999C6C390E0BC493C5 /* WispShareExtension */,
+				5A217649C42DDE2E135D1267 /* Frameworks */,
+				A1124B31413EC161151227F3 /* WispActivityWidget */,
 			);
+			sourceTree = "<group>";
+		};
+		BD9120999C6C390E0BC493C5 /* WispShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				840987C6EBF7F6F0DAC079FC /* ShareExtensionViewController.swift */,
+				DB42C30D5BA2FE5F3850B37C /* ShareView.swift */,
+				5BB9A6AB66BD4D81C4FD354C /* ShareViewModel.swift */,
+			);
+			name = WispShareExtension;
+			path = WispShareExtension;
 			sourceTree = "<group>";
 		};
 		C7EC091CA8E532B96108719F /* Overview */ = {
@@ -603,27 +734,26 @@
 			path = Wisp;
 			sourceTree = "<group>";
 		};
-		AA0011BB22CC33DD44EE0022 /* Previews */ = {
-			isa = PBXGroup;
-			children = (
-				AA0011BB22CC33DD44EE0017 /* ScreenshotPreviews.swift */,
-			);
-			path = Previews;
-			sourceTree = "<group>";
-		};
-		AA0011BB22CC33DD44EE0023 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				AA0011BB22CC33DD44EE001B /* ServiceDetailView.swift */,
-				AA0011BB22CC33DD44EE001D /* ServiceRowView.swift */,
-				AA0011BB22CC33DD44EE001F /* ServicesView.swift */,
-			);
-			path = Services;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		48B4D77D62E5D0600E5E4622 /* WispShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 93A12FA78F99D8DEFD41F256 /* Build configuration list for PBXNativeTarget "WispShareExtension" */;
+			buildPhases = (
+				1DA5D64B772C50B9F1F580BB /* Sources */,
+				02F52449933A46FEC62ABE6E /* Frameworks */,
+				7FB12A8C32D8B67D052FFB09 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WispShareExtension;
+			productName = WispShareExtension;
+			productReference = 14713566DD3160237940036A /* WispShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		9FED08DA26E69D96AED0CA8F /* Wisp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = DB7B583FB74B1FCF01BEC40C /* Build configuration list for PBXNativeTarget "Wisp" */;
@@ -632,10 +762,13 @@
 				FCFBC2DD2F37A7B9481D6068 /* Resources */,
 				4B2C4E0585F6B4BFE384E0F2 /* Frameworks */,
 				DEADBEEF00112233AABBCC01 /* Inject Git Commit Hash */,
+				7374D06BB494087A3EAE7AB1 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6CFAAE22354B3C58D89F410A /* PBXTargetDependency */,
+				E75A2E79C63EF018D43D4A8B /* PBXTargetDependency */,
 			);
 			name = Wisp;
 			packageProductDependencies = (
@@ -685,6 +818,23 @@
 			productReference = AABB001122334455667788AA /* WispTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		F3EF206361B17D30A119D934 /* WispActivityWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E7604889EEC5871E748E5969 /* Build configuration list for PBXNativeTarget "WispActivityWidget" */;
+			buildPhases = (
+				DAC7455800F5A1B8D852E4F8 /* Sources */,
+				E443D0895D624DE5BA55E27F /* Frameworks */,
+				1F4D3C0154170103BF4D0BF6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WispActivityWidget;
+			productName = WispActivityWidget;
+			productReference = 7E0DC7EAE5D5CA548006D98A /* WispActivityWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -709,16 +859,33 @@
 				F1A2B3C4D5E6F7A8B9C0D1E1 /* XCRemoteSwiftPackageReference "swift-tree-sitter" */,
 				F1A2B3C4D5E6F7A8B9C0D1E2 /* XCRemoteSwiftPackageReference "TreeSitterLanguages" */,
 			);
+			productRefGroup = B7756A2DAF10E6E2D9C5CA77 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				9FED08DA26E69D96AED0CA8F /* Wisp */,
 				AABB001122334455667788BB /* WispTests */,
+				48B4D77D62E5D0600E5E4622 /* WispShareExtension */,
+				F3EF206361B17D30A119D934 /* WispActivityWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1F4D3C0154170103BF4D0BF6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7FB12A8C32D8B67D052FFB09 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FCFBC2DD2F37A7B9481D6068 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -743,14 +910,25 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(DERIVED_FILE_DIR)/InjectGitCommitHash.stamp",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "COMMIT=$(git -C \"$SRCROOT\" rev-parse --short HEAD 2>/dev/null || echo \"unknown\")\nINFO_PLIST=\"$BUILT_PRODUCTS_DIR/$INFOPLIST_PATH\"\nif [ -f \"$INFO_PLIST\" ]; then\n  /usr/libexec/PlistBuddy -c \"Add :GitCommitHash string $COMMIT\" \"$INFO_PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Set :GitCommitHash string $COMMIT\" \"$INFO_PLIST\"\nfi\n";
+			shellScript = "COMMIT=$(git -C \"$SRCROOT\" rev-parse --short HEAD 2>/dev/null || echo \"unknown\")\nINFO_PLIST=\"$BUILT_PRODUCTS_DIR/$INFOPLIST_PATH\"\nif [ -f \"$INFO_PLIST\" ]; then\n  /usr/libexec/PlistBuddy -c \"Add :GitCommitHash string $COMMIT\" \"$INFO_PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Set :GitCommitHash string $COMMIT\" \"$INFO_PLIST\"\nfi\ntouch \"$SCRIPT_OUTPUT_FILE_0\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1DA5D64B772C50B9F1F580BB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				255916E89EB30BF538D0B1B8 /* ShareExtensionViewController.swift in Sources */,
+				7C650C1DF049AC74F7FB3C80 /* ShareView.swift in Sources */,
+				F90D15174A92A31532D1BD6D /* ShareViewModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9D93DB780FFF4DC6180B4608 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -877,17 +1055,116 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DAC7455800F5A1B8D852E4F8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				55C2568755823E029D8EF8DC /* WispActivityWidgetBundle.swift in Sources */,
+				CB1DB53D95F10DC969BDC8BF /* WispLiveActivity.swift in Sources */,
+				7B8D9F09B366453B7033BBB7 /* WispActivityAttributes.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		6CFAAE22354B3C58D89F410A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = WispShareExtension;
+			target = 48B4D77D62E5D0600E5E4622 /* WispShareExtension */;
+			targetProxy = 0E6BA0E927FE87A311C9CEEA /* PBXContainerItemProxy */;
+		};
 		AABB0011223344556677880C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 9FED08DA26E69D96AED0CA8F /* Wisp */;
 			targetProxy = AABB0011223344556677880D /* PBXContainerItemProxy */;
 		};
+		E75A2E79C63EF018D43D4A8B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = WispActivityWidget;
+			target = F3EF206361B17D30A119D934 /* WispActivityWidget */;
+			targetProxy = 5C13CFDBD61FFF1EAFFB348D /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		01732101526C8C7E9A954666 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = WispShareExtension/WispShareExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 59;
+				DEVELOPMENT_TEAM = 79X2Z5TT45;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WispShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wisp.app.ShareExtension;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		291B71B8E314B2D10900A7B5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = WispActivityWidget/WispActivityWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 59;
+				DEVELOPMENT_TEAM = 79X2Z5TT45;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WispActivityWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wisp.app.WispActivityWidget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		2FCE8FF6F91A2E36EDB144CE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = WispActivityWidget/WispActivityWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 59;
+				DEVELOPMENT_TEAM = 79X2Z5TT45;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WispActivityWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wisp.app.WispActivityWidget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
 		3498F71907768D50CCE6902E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1013,12 +1290,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Wisp/Wisp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Distribution";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 59;
 				DEVELOPMENT_TEAM = KXSWJN7WY8;
-				PROVISIONING_PROFILE_SPECIFIER = "Wisp App Store Distribution";
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Wisp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Wisp;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1029,7 +1307,8 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.iqlusion.wisp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wisp.app;
+				PROVISIONING_PROFILE_SPECIFIER = "Wisp App Store Distribution";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1039,10 +1318,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Wisp/Wisp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 59;
 				DEVELOPMENT_TEAM = 79X2Z5TT45;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Wisp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Wisp;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1053,7 +1334,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.iqlusion.wisp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wisp.app;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1093,9 +1374,43 @@
 			};
 			name = Debug;
 		};
+		EB106CEAB49FC84F8C794585 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = WispShareExtension/WispShareExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 59;
+				DEVELOPMENT_TEAM = 79X2Z5TT45;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WispShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wisp.app.ShareExtension;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		93A12FA78F99D8DEFD41F256 /* Build configuration list for PBXNativeTarget "WispShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				01732101526C8C7E9A954666 /* Release */,
+				EB106CEAB49FC84F8C794585 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		AABB0011223344556677880B /* Build configuration list for PBXNativeTarget "WispTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1122,6 +1437,15 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
+		};
+		E7604889EEC5871E748E5969 /* Build configuration list for PBXNativeTarget "WispActivityWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				291B71B8E314B2D10900A7B5 /* Release */,
+				2FCE8FF6F91A2E36EDB144CE /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 

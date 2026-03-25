@@ -150,12 +150,8 @@ struct ServiceDetailView: View {
     private func stopService() async {
         isStopping = true
         defer { isStopping = false }
-        do {
-            try await apiClient.deleteService(spriteName: spriteName, serviceName: service.name)
-            hasStopped = true
-        } catch {
-            streamError = error.localizedDescription
-        }
+        await apiClient.deleteService(spriteName: spriteName, serviceName: service.name)
+        hasStopped = true
     }
 }
 

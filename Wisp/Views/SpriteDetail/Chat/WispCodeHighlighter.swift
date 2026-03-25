@@ -51,7 +51,7 @@ struct WispCodeHighlighter: CodeSyntaxHighlighter {
         let highlights = cursor.resolve(with: context).highlights()
 
         // Build styled Text from highlight ranges
-        var result = Text("")
+        var result = Text(verbatim: "")
         var lastEnd = 0
 
         for highlight in highlights {
@@ -64,17 +64,19 @@ struct WispCodeHighlighter: CodeSyntaxHighlighter {
                 let gap = nsCode.substring(
                     with: NSRange(location: lastEnd, length: range.location - lastEnd)
                 )
-                result = result + Text(gap)
+                result = Text("\(result)\(Text(verbatim: gap))")
             }
 
             let text = nsCode.substring(with: range)
-            result = result + Text(text).foregroundColor(Self.color(for: highlight.name))
+            let highlighted = Text(verbatim: text).foregroundColor(Self.color(for: highlight.name))
+            result = Text("\(result)\(highlighted)")
             lastEnd = range.location + range.length
         }
 
         // Remaining plain text after last highlight
         if lastEnd < nsCode.length {
-            result = result + Text(nsCode.substring(from: lastEnd))
+            let remainder = Text(verbatim: nsCode.substring(from: lastEnd))
+            result = Text("\(result)\(remainder)")
         }
 
         return result

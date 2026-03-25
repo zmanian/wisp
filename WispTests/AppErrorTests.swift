@@ -123,7 +123,7 @@ struct SpriteWakeCoordinatorTests {
         )
 
         do {
-            try await coordinator.waitUntilRunning()
+            _ = try await coordinator.waitUntilRunning()
             Issue.record("Expected repeated network failures to throw")
         } catch is URLError {
             // Expected

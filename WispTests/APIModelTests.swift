@@ -144,6 +144,7 @@ struct APIModelTests {
             sessionId: "sess-123",
             model: "claude-sonnet-4",
             maxTurns: 10,
+            claudeQuestionToolEnabled: true,
             customInstructions: "Be concise",
             attachments: ["/tmp/spec.md"]
         )
@@ -155,6 +156,7 @@ struct APIModelTests {
         #expect(jsonObject["working_directory"] as? String == "/home/sprite/project")
         #expect(jsonObject["session_id"] as? String == "sess-123")
         #expect(jsonObject["max_turns"] as? Int == 10)
+        #expect(jsonObject["claude_question_tool_enabled"] as? Bool == true)
         #expect(jsonObject["custom_instructions"] as? String == "Be concise")
     }
 

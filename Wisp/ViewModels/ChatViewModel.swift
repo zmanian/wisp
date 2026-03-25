@@ -6,6 +6,18 @@ import UIKit
 
 private let logger = Logger(subsystem: "com.wisp.app", category: "Chat")
 
+private actor StreamReceiptTracker {
+    private var hasReceivedData = false
+
+    func markReceived() {
+        hasReceivedData = true
+    }
+
+    func receivedData() -> Bool {
+        hasReceivedData
+    }
+}
+
 enum ChatStatus: Sendable, Equatable {
     case idle
     case connecting
@@ -172,7 +184,7 @@ final class ChatViewModel {
         defer { isUploadingAttachment = false }
 
         do {
-            try await apiClient.uploadFile(
+            _ = try await apiClient.uploadFile(
                 spriteName: spriteName,
                 remotePath: remotePath,
                 data: data
@@ -756,6 +768,17 @@ func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
             return
         }
 
+        let wantsClaudeQuestionTool = UserDefaults.standard.bool(forKey: "claudeQuestionTool")
+        let questionToolInstalled: Bool
+        if wantsClaudeQuestionTool {
+            questionToolInstalled = await installClaudeQuestionToolIfNeeded(apiClient: apiClient)
+            if !questionToolInstalled {
+                logger.warning("Question tool install failed for channel chat — proceeding without it")
+            }
+        } else {
+            questionToolInstalled = false
+        }
+
         let fullPrompt = preparePromptForSend(prompt, modelContext: modelContext)
         receivedSystemEvent = false
         receivedResultEvent = false
@@ -778,6 +801,7 @@ func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
             sessionId: sessionId,
             model: modelId,
             maxTurns: maxTurns > 0 ? maxTurns : nil,
+            claudeQuestionToolEnabled: questionToolInstalled,
             customInstructions: customInstructions.isEmpty ? nil : customInstructions,
             attachments: []
         )
@@ -885,12 +909,12 @@ func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
         events: AsyncThrowingStream<ServerSentEvent, Error>,
         modelContext: ModelContext
     ) async -> StreamResult {
-        var receivedData = false
+        let receiptTracker = StreamReceiptTracker()
         var lastPersistTime = Date.distantPast
 
         let timeoutTask = Task {
             try await Task.sleep(for: .seconds(45))
-            if !receivedData {
+            if !(await receiptTracker.receivedData()) {
                 logger.warning("No channel data received in 45s")
             }
         }
@@ -906,7 +930,7 @@ func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
 
                 guard !event.data.isEmpty else { continue }
 
-                receivedData = true
+                await receiptTracker.markReceived()
                 timeoutTask.cancel()
                 if case .connecting = status { status = .streaming }
                 else if case .reconnecting = status { status = .streaming }
@@ -935,13 +959,13 @@ func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
 
             timeoutTask.cancel()
             if Task.isCancelled { return .cancelled }
-            if !receivedData { return .timedOut }
+            if !(await receiptTracker.receivedData()) { return .timedOut }
             return receivedResultEvent ? .completed : .disconnected
         } catch {
             timeoutTask.cancel()
             logger.error("Channel stream error: \(Self.sanitize(error.localizedDescription), privacy: .public)")
             if Task.isCancelled { return .cancelled }
-            if receivedData { return .disconnected }
+            if await receiptTracker.receivedData() { return .disconnected }
             status = .error("No response from the channel bridge — try again")
             return .timedOut
         }
@@ -1010,10 +1034,23 @@ func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
             currentAssistantMessage = nil
         }
 
-        if case .timedOut = streamResult {
-            previousSessionDisconnected = true
-        } else if case .disconnected = streamResult {
-            previousSessionDisconnected = true
+        var restoredTranscript = false
+        if await shouldRestoreTranscriptAfterChannelFailure(
+            streamResult: streamResult,
+            sprite: sprite,
+            apiClient: apiClient
+        ) {
+            if case .error = status { status = .reconnecting }
+            logger.info("[Chat] Channel reattach ended with \(streamResult.description, privacy: .public) — restoring from session file")
+            restoredTranscript = await restoreFromSessionFile(apiClient: apiClient, modelContext: modelContext)
+        }
+
+        if !restoredTranscript {
+            if case .timedOut = streamResult {
+                previousSessionDisconnected = true
+            } else if case .disconnected = streamResult {
+                previousSessionDisconnected = true
+            }
         }
 
         saveSession(modelContext: modelContext)
@@ -1033,10 +1070,36 @@ func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
         }
     }
 
+    private func shouldRestoreTranscriptAfterChannelFailure(
+        streamResult: StreamResult,
+        sprite: Sprite,
+        apiClient: SpritesAPIClient
+    ) async -> Bool {
+        guard sessionId != nil else { return false }
+
+        switch streamResult {
+        case .timedOut, .disconnected:
+            break
+        case .completed, .cancelled:
+            return false
+        }
+
+        do {
+            let status = try await apiClient.getChannelBridgeStatus(
+                sprite: sprite,
+                chatId: chatId.uuidString.lowercased()
+            )
+            return !status.isRunning || status.isBusy != true
+        } catch {
+            logger.info("[Chat] Channel status unavailable after reattach failure; attempting transcript restore")
+            return true
+        }
+    }
+
     /// Restore chat history from Claude's .jsonl session file on the sprite.
     /// Used when the exec session is gone (sprite slept, exec expired).
-    private func restoreFromSessionFile(apiClient: SpritesAPIClient, modelContext: ModelContext) async {
-        guard let sessionId = sessionId else { return }
+    private func restoreFromSessionFile(apiClient: SpritesAPIClient, modelContext: ModelContext) async -> Bool {
+        guard let sessionId = sessionId else { return false }
 
         let encodedPath = workingDirectory.replacingOccurrences(of: "/", with: "-")
         let path = "~/.claude/projects/\(encodedPath)/\(sessionId).jsonl"
@@ -1064,10 +1127,10 @@ func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
             }
         }
 
-        guard !output.isEmpty else { return }
+        guard !output.isEmpty else { return false }
 
         let parsed = Self.parseSessionJSONL(output)
-        guard !parsed.isEmpty else { return }
+        guard !parsed.isEmpty else { return false }
 
         messages = parsed
         rebuildToolUseIndex()
@@ -1078,6 +1141,7 @@ func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
         } else {
             saveSession(modelContext: modelContext, isComplete: true)
         }
+        return true
     }
 
     func handleEvent(_ event: ClaudeStreamEvent, modelContext: ModelContext) {
@@ -1609,7 +1673,7 @@ func loadSession(apiClient: SpritesAPIClient, modelContext: ModelContext) {
             logger.info("Installing Claude question tool (version \(ClaudeQuestionTool.version))...")
             do {
                 // Write files directly via the REST filesystem API to avoid shell command length limits
-                try await apiClient.uploadFile(
+                _ = try await apiClient.uploadFile(
                     spriteName: spriteName,
                     remotePath: ClaudeQuestionTool.serverPyPath,
                     data: Data(ClaudeQuestionTool.serverScript.utf8)
