@@ -380,7 +380,24 @@ final class SpritesAPIClient {
             contents: bridgeSecret
         )
 
-        if let claudeToken, !claudeToken.isEmpty {
+        // Only upload the app's Claude token if the sprite doesn't already have
+        // its own credentials from an interactive `claude /login`.
+        let (hasLocalCreds, _) = await runExec(
+            spriteName: spriteName,
+            command: "test -f ~/.claude/.credentials.json && echo yes || echo no",
+            timeout: 10
+        )
+        let spriteHasOwnToken = hasLocalCreds.trimmingCharacters(in: .whitespacesAndNewlines) == "yes"
+
+        if spriteHasOwnToken {
+            // Remove any previously uploaded token so the bridge uses the sprite's own credentials
+            _ = await runExec(
+                spriteName: spriteName,
+                command: "rm -f \(WispChannelBridge.claudeTokenPath)",
+                timeout: 10
+            )
+            logger.info("Sprite has its own Claude credentials — using sprite-local auth")
+        } else if let claudeToken, !claudeToken.isEmpty {
             try await uploadTextFile(
                 spriteName: spriteName,
                 remotePath: WispChannelBridge.claudeTokenPath,
@@ -389,7 +406,7 @@ final class SpritesAPIClient {
         } else {
             _ = await runExec(
                 spriteName: spriteName,
-                command: "rm -f ~/.wisp/channel-bridge/claude_oauth_token",
+                command: "rm -f \(WispChannelBridge.claudeTokenPath)",
                 timeout: 15
             )
         }
