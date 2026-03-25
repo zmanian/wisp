@@ -176,7 +176,7 @@ enum ClaudeQuestionTool {
 }
 
 enum WispChannelBridge {
-    static let version = "6"
+    static let version = "7"
     static let serviceName = "wisp-channel-bridge"
     static let httpPort = 39281
 
@@ -1249,8 +1249,32 @@ enum WispChannelBridge {
                 time.sleep(SSE_POLL_INTERVAL)
 
 
+    def ensure_claude_global_config() -> None:
+        """Pre-configure Claude to skip interactive onboarding prompts."""
+        global_config_path = Path.home() / ".claude.json"
+        config = read_json(global_config_path, default={})
+        changed = False
+        if not config.get("hasCompletedOnboarding"):
+            config["hasCompletedOnboarding"] = True
+            changed = True
+        if config.get("numStartups") is None:
+            config["numStartups"] = 1
+            changed = True
+        if changed:
+            atomic_write_text(global_config_path, json.dumps(config, sort_keys=True))
+            log("Pre-configured Claude global config to skip onboarding")
+
+        settings_path = claude_settings_path()
+        settings = read_json(settings_path, default={})
+        if not settings.get("skipDangerousModePermissionPrompt"):
+            settings["skipDangerousModePermissionPrompt"] = True
+            atomic_write_text(settings_path, json.dumps(settings, sort_keys=True))
+            log("Set skipDangerousModePermissionPrompt in Claude settings")
+
+
     def main() -> None:
         ensure_base_dirs()
+        ensure_claude_global_config()
         load_routes()
         log(f"Loaded {len(ROUTES)} route(s)")
         server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
