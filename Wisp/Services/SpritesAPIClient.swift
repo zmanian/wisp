@@ -305,6 +305,35 @@ final class SpritesAPIClient {
         )
     }
 
+    private func ensureMinimumClaudeVersion(spriteName: String) async throws {
+        let (versionOutput, success) = await runExec(
+            spriteName: spriteName,
+            command: WispChannelBridge.checkClaudeVersionCommand,
+            timeout: 15
+        )
+        let installedVersion = versionOutput
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: " (Claude Code)", with: "")
+
+        if success, !installedVersion.isEmpty,
+           installedVersion.compare(WispChannelBridge.minimumClaudeVersion, options: .numeric) != .orderedAscending {
+            logger.info("Claude version \(installedVersion, privacy: .public) meets minimum \(WispChannelBridge.minimumClaudeVersion, privacy: .public)")
+            return
+        }
+
+        logger.info("Claude version \(installedVersion, privacy: .public) below minimum \(WispChannelBridge.minimumClaudeVersion, privacy: .public) — updating")
+        let (updateOutput, updateSuccess) = await runExec(
+            spriteName: spriteName,
+            command: WispChannelBridge.updateClaudeCommand,
+            timeout: 120
+        )
+        if updateSuccess {
+            logger.info("Claude update completed: \(updateOutput.suffix(100), privacy: .public)")
+        } else {
+            logger.error("Claude update may have failed: \(updateOutput.suffix(200), privacy: .public)")
+        }
+    }
+
     private func installChannelBridgeIfNeeded(
         spriteName: String,
         claudeToken: String?,
@@ -372,6 +401,7 @@ final class SpritesAPIClient {
         _ = try channelBridgeBaseURL(sprite: sprite)
 
         let bridgeSecret = channelBridgeSecret(for: spriteName)
+        try await ensureMinimumClaudeVersion(spriteName: spriteName)
         try await installChannelBridgeIfNeeded(
             spriteName: spriteName,
             claudeToken: claudeToken,

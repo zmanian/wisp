@@ -189,6 +189,9 @@ enum WispChannelBridge {
 
     static let checkVersionCommand = "cat ~/.wisp/channel-bridge/version 2>/dev/null || echo ''"
     static let chmodCommand = "chmod +x ~/.wisp/channel-bridge/bridge.py ~/.wisp/channel-bridge/channel.py"
+    static let minimumClaudeVersion = "2.1.81"
+    static let checkClaudeVersionCommand = "claude --version 2>/dev/null | head -1 || echo ''"
+    static let updateClaudeCommand = "claude update 2>&1 || npm update -g @anthropic-ai/claude-code 2>&1"
 
     static let serviceRequest = ServiceRequest(
         cmd: "python3",
