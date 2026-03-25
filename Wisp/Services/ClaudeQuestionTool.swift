@@ -176,7 +176,7 @@ enum ClaudeQuestionTool {
 }
 
 enum WispChannelBridge {
-    static let version = "7"
+    static let version = "9"
     static let serviceName = "wisp-channel-bridge"
     static let httpPort = 39281
 
@@ -559,6 +559,9 @@ enum WispChannelBridge {
                     and "BypassPermissionsmode" in compact_buffer
                     and "Yes,Iaccept" in compact_buffer
                 ):
+                    # Default is "No, exit" — press down arrow to select "Yes, I accept"
+                    os.write(master_fd, b"\x1b[B")
+                    time.sleep(0.1)
                     os.write(master_fd, b"\r")
                     accepted_bypass = True
                     log(f"Accepted bypass permissions prompt for chat {chat_id}")
@@ -1269,10 +1272,17 @@ enum WispChannelBridge {
 
         settings_path = claude_settings_path()
         settings = read_json(settings_path, default={})
+        changed_settings = False
         if not settings.get("skipDangerousModePermissionPrompt"):
             settings["skipDangerousModePermissionPrompt"] = True
+            changed_settings = True
+        permissions = settings.setdefault("permissions", {})
+        if permissions.get("defaultMode") != "bypassPermissions":
+            permissions["defaultMode"] = "bypassPermissions"
+            changed_settings = True
+        if changed_settings:
             atomic_write_text(settings_path, json.dumps(settings, sort_keys=True))
-            log("Set skipDangerousModePermissionPrompt in Claude settings")
+            log("Configured Claude permissions and bypass settings")
 
 
     def main() -> None:
