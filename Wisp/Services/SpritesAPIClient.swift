@@ -350,13 +350,18 @@ final class SpritesAPIClient {
         if needsInstall {
             try await uploadTextFile(
                 spriteName: spriteName,
-                remotePath: WispChannelBridge.bridgePyPath,
-                contents: WispChannelBridge.bridgeScript
+                remotePath: WispChannelBridge.serverTsPath,
+                contents: WispChannelBridge.serverScript
             )
             try await uploadTextFile(
                 spriteName: spriteName,
-                remotePath: WispChannelBridge.channelPyPath,
-                contents: WispChannelBridge.channelScript
+                remotePath: WispChannelBridge.launcherPyPath,
+                contents: WispChannelBridge.launcherScript
+            )
+            try await uploadTextFile(
+                spriteName: spriteName,
+                remotePath: WispChannelBridge.packageJsonPath,
+                contents: WispChannelBridge.packageJsonScript
             )
             try await uploadTextFile(
                 spriteName: spriteName,
@@ -370,8 +375,20 @@ final class SpritesAPIClient {
                 timeout: 15
             )
             guard chmodSuccess else {
-                throw AppError.serverError(statusCode: 500, message: "Failed to mark the channel bridge scripts as executable")
+                throw AppError.serverError(statusCode: 500, message: "Failed to mark plugin scripts as executable")
             }
+
+            let (_, depsSuccess) = await runExec(
+                spriteName: spriteName,
+                command: WispChannelBridge.installDepsCommand,
+                timeout: 60
+            )
+            if !depsSuccess {
+                logger.error("Plugin dependency install may have failed")
+            }
+
+            // Clean up old bridge service if it exists
+            _ = try? await deleteService(spriteName: spriteName, serviceName: "wisp-channel-bridge")
         }
 
         try await uploadTextFile(
