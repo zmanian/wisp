@@ -686,19 +686,31 @@ final class SpritesAPIClient {
         )
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         if let lastEventId {
             request.setValue(lastEventId, forHTTPHeaderField: "Last-Event-ID")
         }
 
+        // Use a dedicated session for SSE to avoid shared session buffering/caching
+        let sseConfig = URLSessionConfiguration.default
+        sseConfig.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        sseConfig.urlCache = nil
+        sseConfig.timeoutIntervalForRequest = timeout
+        sseConfig.timeoutIntervalForResource = timeout
+        let sseSession = URLSession(configuration: sseConfig)
+
         return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    logger.info("SSE: connecting to \(request.url?.absoluteString ?? "nil", privacy: .public)")
+                    let (bytes, response) = try await sseSession.bytes(for: request)
 
                     guard let httpResponse = response as? HTTPURLResponse else {
                         continuation.finish(throwing: AppError.networkError(URLError(.badServerResponse)))
                         return
                     }
+
+                    logger.info("SSE: got response status=\(httpResponse.statusCode, privacy: .public)")
 
                     guard (200...299).contains(httpResponse.statusCode) else {
                         switch httpResponse.statusCode {
@@ -710,17 +722,35 @@ final class SpritesAPIClient {
                     }
 
                     let parser = ServerSentEventParser()
-                    for try await line in bytes.lines {
-                        if let event = await parser.parse(line: line) {
+                    // bytes.lines skips empty lines, but SSE requires them as
+                    // event separators. Use raw byte iteration with manual line
+                    // splitting to preserve empty lines.
+                    var lineBuffer = ""
+                    for try await byte in bytes {
+                        let char = Character(UnicodeScalar(byte))
+                        if char == "\n" {
+                            let line = lineBuffer
+                            lineBuffer = ""
+                            if let event = await parser.parse(line: line) {
+                                continuation.yield(event)
+                            }
+                        } else if char != "\r" {
+                            lineBuffer.append(char)
+                        }
+                    }
+                    // Flush any remaining partial line
+                    if !lineBuffer.isEmpty {
+                        if let event = await parser.parse(line: lineBuffer) {
                             continuation.yield(event)
                         }
                     }
+                    logger.info("SSE: stream ended normally")
                     if let trailingEvent = await parser.finish() {
                         continuation.yield(trailingEvent)
                     }
                     continuation.finish()
                 } catch {
-                    logger.error("streamChannelBridgeEvents error: \(error.localizedDescription, privacy: .public)")
+                    logger.error("SSE stream error: \(error.localizedDescription, privacy: .public)")
                     continuation.finish(throwing: error)
                 }
             }
