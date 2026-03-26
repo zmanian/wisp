@@ -176,7 +176,7 @@ enum ClaudeQuestionTool {
 }
 
 enum WispChannelBridge {
-    static let version = "11"
+    static let version = "12"
     static let serviceName = "wisp-launcher"
     static let httpPort = 39281
 
@@ -273,6 +273,11 @@ enum WispChannelBridge {
     
     function log(msg: string): void {
       process.stderr.write(`[wisp] ${msg}\n`);
+      // Also write to a file for debugging
+      try {
+        const fs = require("node:fs");
+        fs.appendFileSync(join(BASE_DIR, "wisp.log"), `${new Date().toISOString()} ${msg}\n`);
+      } catch {}
     }
     
     // ---------------------------------------------------------------------------
@@ -497,6 +502,7 @@ enum WispChannelBridge {
         case "reply": {
           const chatId = String(args.chat_id || "");
           const text = String(args.text || "");
+          log(`Reply tool called: chat=${chatId} text="${text.slice(0, 50)}"`);
           if (!chatId || !text) {
             return { content: [{ type: "text", text: "chat_id and text are required" }], isError: true };
           }
@@ -640,7 +646,7 @@ enum WispChannelBridge {
           // Send as channel notification to Claude
           sendToChannel(chatId, text);
     
-          log(`Sent channel message for chat ${chatId}`);
+          log(`POST /message for chat ${chatId}: "${text.slice(0, 50)}"`);
           sendJson(res, 202, { ok: true, is_busy: true });
           return;
         }
@@ -673,6 +679,8 @@ enum WispChannelBridge {
           if (!chatId) {
             throw new HttpError(400, "chat_id is required");
           }
+    
+          log(`SSE stream requested for chat ${chatId}`);
     
           // SSE stream
           res.writeHead(200, {
@@ -979,6 +987,18 @@ enum WispChannelBridge {
     
         env = os.environ.copy()
         env["NO_DNA"] = "1"
+    
+        # Pass the uploaded Claude OAuth token if available and no local credentials exist
+        token_path = Path.home() / ".wisp" / "channel-bridge" / "claude_oauth_token"
+        creds_path = Path.home() / ".claude" / ".credentials.json"
+        if not creds_path.exists():
+            try:
+                token = token_path.read_text(encoding="utf-8").strip()
+                if token:
+                    env["CLAUDE_CODE_OAUTH_TOKEN"] = token
+                    log("Using uploaded Claude OAuth token")
+            except FileNotFoundError:
+                log("No Claude token available — Claude may fail to authenticate")
     
         log_dir = PLUGIN_DIR / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)

@@ -176,6 +176,18 @@ def start_claude(working_directory: str) -> subprocess.Popen:
     env = os.environ.copy()
     env["NO_DNA"] = "1"
 
+    # Pass the uploaded Claude OAuth token if available and no local credentials exist
+    token_path = Path.home() / ".wisp" / "channel-bridge" / "claude_oauth_token"
+    creds_path = Path.home() / ".claude" / ".credentials.json"
+    if not creds_path.exists():
+        try:
+            token = token_path.read_text(encoding="utf-8").strip()
+            if token:
+                env["CLAUDE_CODE_OAUTH_TOKEN"] = token
+                log("Using uploaded Claude OAuth token")
+        except FileNotFoundError:
+            log("No Claude token available — Claude may fail to authenticate")
+
     log_dir = PLUGIN_DIR / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     stdout_handle = (log_dir / "claude.stdout.log").open("ab")
