@@ -32,3 +32,4 @@ Package.resolved
 .DS_Store
 *.swp
 *~
+wisp-plugin/node_modules/
