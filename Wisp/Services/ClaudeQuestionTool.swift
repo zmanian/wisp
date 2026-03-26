@@ -176,7 +176,7 @@ enum ClaudeQuestionTool {
 }
 
 enum WispChannelBridge {
-    static let version = "10"
+    static let version = "11"
     static let serviceName = "wisp-launcher"
     static let httpPort = 39281
 
@@ -508,6 +508,16 @@ enum WispChannelBridge {
               role: "assistant",
               content: [{ type: "text", text }],
             },
+            uuid: crypto.randomUUID(),
+          });
+    
+          // Mark the turn as complete
+          const state = getChatState(chatId);
+          state.busy = false;
+          appendEvent(chatId, "result", {
+            type: "result",
+            subtype: "success",
+            is_error: false,
             uuid: crypto.randomUUID(),
           });
     

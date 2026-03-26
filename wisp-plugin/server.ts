@@ -305,6 +305,16 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
         uuid: crypto.randomUUID(),
       });
 
+      // Mark the turn as complete
+      const state = getChatState(chatId);
+      state.busy = false;
+      appendEvent(chatId, "result", {
+        type: "result",
+        subtype: "success",
+        is_error: false,
+        uuid: crypto.randomUUID(),
+      });
+
       // Resolve any pending reply promise
       const pending = pendingReplies.get(chatId);
       if (pending) {
