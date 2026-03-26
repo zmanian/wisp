@@ -67,6 +67,11 @@ const chatStates = new Map<string, ChatState>();
 
 function log(msg: string): void {
   process.stderr.write(`[wisp] ${msg}\n`);
+  // Also write to a file for debugging
+  try {
+    const fs = require("node:fs");
+    fs.appendFileSync(join(BASE_DIR, "wisp.log"), `${new Date().toISOString()} ${msg}\n`);
+  } catch {}
 }
 
 // ---------------------------------------------------------------------------
@@ -291,6 +296,7 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
     case "reply": {
       const chatId = String(args.chat_id || "");
       const text = String(args.text || "");
+      log(`Reply tool called: chat=${chatId} text="${text.slice(0, 50)}"`);
       if (!chatId || !text) {
         return { content: [{ type: "text", text: "chat_id and text are required" }], isError: true };
       }
@@ -311,6 +317,7 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
       appendEvent(chatId, "result", {
         type: "result",
         subtype: "success",
+        session_id: chatId,
         is_error: false,
         uuid: crypto.randomUUID(),
       });
@@ -423,10 +430,17 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       const state = getChatState(chatId);
       state.busy = true;
 
+      // Emit a system event so the SSE stream has an immediate event
+      appendEvent(chatId, "system", {
+        type: "system",
+        session_id: chatId,
+        model: "claude",
+      });
+
       // Send as channel notification to Claude
       sendToChannel(chatId, text);
 
-      log(`Sent channel message for chat ${chatId}`);
+      log(`POST /message for chat ${chatId}: "${text.slice(0, 50)}"`);
       sendJson(res, 202, { ok: true, is_busy: true });
       return;
     }
@@ -444,6 +458,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       appendEvent(chatId, "result", {
         type: "result",
         subtype: "interrupted",
+        session_id: chatId,
         is_error: false,
         uuid: crypto.randomUUID(),
       });
@@ -458,6 +473,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       if (!chatId) {
         throw new HttpError(400, "chat_id is required");
       }
+
+      log(`SSE stream requested for chat ${chatId}`);
 
       // SSE stream
       res.writeHead(200, {
@@ -474,6 +491,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       }
 
       let lastHeartbeat = Date.now();
+      let idlePolls = 0;
+      const MAX_IDLE_POLLS = 20; // 5 seconds at 250ms interval
 
       const poll = setInterval(() => {
         const state = getChatState(chatId);
@@ -490,6 +509,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           res.write(`data: ${event.data}\n\n`);
           const num = parseInt(event.id.replace(/^evt-/, ""), 10) || 0;
           if (num > lastSeen) lastSeen = num;
+          idlePolls = 0;
 
           if (event.event === "result") {
             clearInterval(poll);
@@ -498,11 +518,16 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           }
         }
 
-        // If not busy and no new events, end stream
+        // If not busy and no new events, wait a grace period before ending
         if (!state.busy && unsent.length === 0) {
-          clearInterval(poll);
-          res.end();
-          return;
+          idlePolls++;
+          if (idlePolls >= MAX_IDLE_POLLS) {
+            clearInterval(poll);
+            res.end();
+            return;
+          }
+        } else {
+          idlePolls = 0;
         }
 
         // Heartbeat
@@ -538,7 +563,7 @@ async function main(): Promise<void> {
   loadRoutes();
   log(`Loaded ${routes.length} route(s)`);
 
-  // Start HTTP server
+  // Start HTTP server first and wait for it to bind
   const httpServer = createServer((req, res) => {
     handleRequest(req, res).catch((err) => {
       log(`Request error: ${err}`);
@@ -548,15 +573,14 @@ async function main(): Promise<void> {
     });
   });
 
-  httpServer.listen(PORT, "0.0.0.0", () => {
-    log(`HTTP server listening on :${PORT}`);
+  await new Promise<void>((resolve) => {
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      log(`HTTP server listening on :${PORT}`);
+      resolve();
+    });
   });
 
-  // Connect MCP transport (stdio)
-  await mcp.connect(new StdioServerTransport());
-  log("MCP connected");
-
-  // Stay alive — clean up on exit
+  // Clean up on exit
   const shutdown = () => {
     log("Shutting down");
     httpServer.close();
@@ -567,6 +591,10 @@ async function main(): Promise<void> {
   process.on("SIGINT", shutdown);
   process.stdin.on("end", shutdown);
   process.stdin.on("close", shutdown);
+
+  // Connect MCP transport (stdio) — this keeps the process alive
+  await mcp.connect(new StdioServerTransport());
+  log("MCP connected");
 }
 
 main().catch((err) => {

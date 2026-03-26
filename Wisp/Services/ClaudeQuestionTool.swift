@@ -517,6 +517,7 @@ enum WispChannelBridge {
           appendEvent(chatId, "result", {
             type: "result",
             subtype: "success",
+            session_id: chatId,
             is_error: false,
             uuid: crypto.randomUUID(),
           });
@@ -629,6 +630,13 @@ enum WispChannelBridge {
           const state = getChatState(chatId);
           state.busy = true;
     
+          // Emit a system event so the SSE stream has an immediate event
+          appendEvent(chatId, "system", {
+            type: "system",
+            session_id: chatId,
+            model: "claude",
+          });
+    
           // Send as channel notification to Claude
           sendToChannel(chatId, text);
     
@@ -650,6 +658,7 @@ enum WispChannelBridge {
           appendEvent(chatId, "result", {
             type: "result",
             subtype: "interrupted",
+            session_id: chatId,
             is_error: false,
             uuid: crypto.randomUUID(),
           });
@@ -680,6 +689,8 @@ enum WispChannelBridge {
           }
     
           let lastHeartbeat = Date.now();
+          let idlePolls = 0;
+          const MAX_IDLE_POLLS = 20; // 5 seconds at 250ms interval
     
           const poll = setInterval(() => {
             const state = getChatState(chatId);
@@ -696,6 +707,7 @@ enum WispChannelBridge {
               res.write(`data: ${event.data}\n\n`);
               const num = parseInt(event.id.replace(/^evt-/, ""), 10) || 0;
               if (num > lastSeen) lastSeen = num;
+              idlePolls = 0;
     
               if (event.event === "result") {
                 clearInterval(poll);
@@ -704,11 +716,16 @@ enum WispChannelBridge {
               }
             }
     
-            // If not busy and no new events, end stream
+            // If not busy and no new events, wait a grace period before ending
             if (!state.busy && unsent.length === 0) {
-              clearInterval(poll);
-              res.end();
-              return;
+              idlePolls++;
+              if (idlePolls >= MAX_IDLE_POLLS) {
+                clearInterval(poll);
+                res.end();
+                return;
+              }
+            } else {
+              idlePolls = 0;
             }
     
             // Heartbeat
@@ -744,7 +761,7 @@ enum WispChannelBridge {
       loadRoutes();
       log(`Loaded ${routes.length} route(s)`);
     
-      // Start HTTP server
+      // Start HTTP server first and wait for it to bind
       const httpServer = createServer((req, res) => {
         handleRequest(req, res).catch((err) => {
           log(`Request error: ${err}`);
@@ -754,15 +771,14 @@ enum WispChannelBridge {
         });
       });
     
-      httpServer.listen(PORT, "0.0.0.0", () => {
-        log(`HTTP server listening on :${PORT}`);
+      await new Promise<void>((resolve) => {
+        httpServer.listen(PORT, "0.0.0.0", () => {
+          log(`HTTP server listening on :${PORT}`);
+          resolve();
+        });
       });
     
-      // Connect MCP transport (stdio)
-      await mcp.connect(new StdioServerTransport());
-      log("MCP connected");
-    
-      // Stay alive — clean up on exit
+      // Clean up on exit
       const shutdown = () => {
         log("Shutting down");
         httpServer.close();
@@ -773,6 +789,10 @@ enum WispChannelBridge {
       process.on("SIGINT", shutdown);
       process.stdin.on("end", shutdown);
       process.stdin.on("close", shutdown);
+    
+      // Connect MCP transport (stdio) — this keeps the process alive
+      await mcp.connect(new StdioServerTransport());
+      log("MCP connected");
     }
     
     main().catch((err) => {
