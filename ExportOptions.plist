@@ -18,6 +18,8 @@
 		<string>Wisp App Store Distribution</string>
 		<key>io.iqlusion.wisp.activity-widget</key>
 		<string>Wisp Activity Widget Dist</string>
+		<key>io.iqlusion.wisp.ShareExtension</key>
+		<string>Wisp Share Extension Dist</string>
 	</dict>
 	<key>uploadSymbols</key>
 	<true/>
