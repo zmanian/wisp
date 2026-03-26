@@ -31,12 +31,8 @@ final class ServicesViewModel {
     }
 
     func stop(service: ServiceInfo, apiClient: SpritesAPIClient) async {
-        do {
-            try await apiClient.deleteService(spriteName: spriteName, serviceName: service.name)
-            services.removeAll { $0.name == service.name }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        await apiClient.deleteService(spriteName: spriteName, serviceName: service.name)
+        services.removeAll { $0.name == service.name }
     }
 
     func displayName(for service: ServiceInfo) -> String {

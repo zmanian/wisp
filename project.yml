@@ -39,8 +39,11 @@ targets:
         com.apple.security.application-groups:
           - group.com.wisp.app
     dependencies:
+      - sdk: AppIntents.framework
       - package: MarkdownUI
       - target: WispShareExtension
+        embed: true
+      - target: WispActivityWidget
         embed: true
 
   WispShareExtension:
@@ -60,3 +63,37 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.wisp.app
+    dependencies:
+      - sdk: AppIntents.framework
+
+  WispActivityWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - WispActivityWidget
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.wisp.app.WispActivityWidget
+      GENERATE_INFOPLIST_FILE: false
+      INFOPLIST_FILE: WispActivityWidget/Info.plist
+      SWIFT_VERSION: "6.0"
+      SWIFT_STRICT_CONCURRENCY: complete
+    entitlements:
+      path: WispActivityWidget/WispActivityWidget.entitlements
+
+  WispTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - WispTests
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.wisp.app.tests
+      MARKETING_VERSION: "1.0.0"
+      CURRENT_PROJECT_VERSION: "59"
+      SWIFT_EMIT_LOC_STRINGS: NO
+      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Wisp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Wisp"
+      BUNDLE_LOADER: "$(TEST_HOST)"
+    dependencies:
+      - target: Wisp
+      - sdk: AppIntents.framework

@@ -16,7 +16,7 @@ struct ChatInputBar: View {
     var onRemoveAttachment: ((AttachedFile) -> Void)? = nil
     var lastUploadedFileName: String? = nil
     var onStash: (() -> Void)? = nil
-    var onSideChat: (() -> Void)? = nil
+    var onQuickActions: (() -> Void)? = nil
     var onQuickMessages: (() -> Void)? = nil
     var isFocused: FocusState<Bool>.Binding
 

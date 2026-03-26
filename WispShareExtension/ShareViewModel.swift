@@ -94,7 +94,7 @@ final class ShareViewModel {
         ]
 
         guard let url = components.url else { return }
-        extensionContext.open(url) { _ in }
+        _ = await extensionContext.open(url)
         extensionContext.completeRequest(returningItems: [], completionHandler: nil)
     }
 
@@ -173,11 +173,11 @@ final class ShareViewModel {
         ext: String,
         to directory: URL
     ) async -> URL? {
-        await withCheckedContinuation { cont in
+        let suggestedName = provider.suggestedName ?? "shared_file"
+        return await withCheckedContinuation { (cont: CheckedContinuation<URL?, Never>) in
             provider.loadDataRepresentation(forTypeIdentifier: typeID) { data, _ in
                 guard let data else { cont.resume(returning: nil); return }
-                let base = provider.suggestedName ?? "shared_file"
-                let name = base.hasSuffix(".\(ext)") ? base : "\(base).\(ext)"
+                let name = suggestedName.hasSuffix(".\(ext)") ? suggestedName : "\(suggestedName).\(ext)"
                 let dest = directory.appendingPathComponent(name)
                 try? data.write(to: dest)
                 let saved = FileManager.default.fileExists(atPath: dest.path) ? dest : nil

@@ -43,3 +43,82 @@ actor ClaudeStreamParser {
         }
     }
 }
+
+struct ServerSentEvent: Sendable, Equatable {
+    let event: String?
+    let id: String?
+    let data: String
+    let retry: Int?
+}
+
+actor ServerSentEventParser {
+    private var eventName: String?
+    private var eventId: String?
+    private var dataLines: [String] = []
+    private var retry: Int?
+
+    func parse(line: String) -> ServerSentEvent? {
+        if line.isEmpty {
+            return flushCurrentEvent()
+        }
+
+        if line.hasPrefix(":") {
+            return nil
+        }
+
+        let field: String
+        var value = ""
+
+        if let separator = line.firstIndex(of: ":") {
+            field = String(line[..<separator])
+            value = String(line[line.index(after: separator)...])
+            if value.first == " " {
+                value.removeFirst()
+            }
+        } else {
+            field = line
+        }
+
+        switch field {
+        case "event":
+            eventName = value
+        case "data":
+            dataLines.append(value)
+        case "id":
+            eventId = value
+        case "retry":
+            retry = Int(value)
+        default:
+            break
+        }
+
+        return nil
+    }
+
+    func finish() -> ServerSentEvent? {
+        flushCurrentEvent()
+    }
+
+    private func flushCurrentEvent() -> ServerSentEvent? {
+        guard !dataLines.isEmpty || eventName != nil || eventId != nil || retry != nil else {
+            reset()
+            return nil
+        }
+
+        let event = ServerSentEvent(
+            event: eventName,
+            id: eventId,
+            data: dataLines.joined(separator: "\n"),
+            retry: retry
+        )
+        reset()
+        return event
+    }
+
+    private func reset() {
+        eventName = nil
+        eventId = nil
+        dataLines = []
+        retry = nil
+    }
+}

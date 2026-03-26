@@ -25,7 +25,7 @@ struct ChatViewModelTests {
         return (vm, chat)
     }
 
-    private func makeExecStream(_ events: [ExecEvent]) -> AsyncThrowingStream<ExecEvent, Error> {
+    private func makeSSEStream(_ events: [ServerSentEvent]) -> AsyncThrowingStream<ServerSentEvent, Error> {
         AsyncThrowingStream { continuation in
             for event in events { continuation.yield(event) }
             continuation.finish()
@@ -488,130 +488,49 @@ struct ChatViewModelTests {
         }
     }
 
-    // MARK: - processExecStream
+    // MARK: - processChannelStream
 
-    @Test func processExecStream_cleanCloseWithResultEvent_returnsCompleted() async throws {
+    @Test func processChannelStream_tracksLastEventIdAndCompletes() async throws {
         let ctx = try makeModelContext()
-        let (vm, _) = makeChatViewModel(modelContext: ctx)
+        let (vm, chat) = makeChatViewModel(modelContext: ctx)
 
         let assistantMsg = ChatMessage(role: .assistant)
         vm.messages.append(assistantMsg)
         vm.setCurrentAssistantMessage(assistantMsg)
 
-        let systemLine = #"{"type":"system","session_id":"s1","model":"claude-sonnet-4-20250514"}"# + "\n"
-        let resultLine = #"{"type":"result","session_id":"s1","subtype":"success"}"# + "\n"
-
-        let stream = makeExecStream([
-            .stdout(Data((systemLine + resultLine).utf8))
+        let stream = makeSSEStream([
+            ServerSentEvent(
+                event: "system",
+                id: "evt-1",
+                data: #"{"type":"system","session_id":"s1","model":"claude-sonnet-4-20250514"}"#,
+                retry: nil
+            ),
+            ServerSentEvent(
+                event: "assistant",
+                id: "evt-2",
+                data: #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hello from channel"}]}}"#,
+                retry: nil
+            ),
+            ServerSentEvent(
+                event: "result",
+                id: "evt-3",
+                data: #"{"type":"result","session_id":"s1","subtype":"success"}"#,
+                retry: nil
+            ),
         ])
 
-        let result = await vm.processExecStream(events: stream, modelContext: ctx)
-
-        guard case .completed = result else {
-            Issue.record("Expected .completed, got \(result)")
-            return
-        }
-    }
-
-    @Test func processExecStream_cleanCloseWithDataButNoResultEvent_returnsDisconnected() async throws {
-        let ctx = try makeModelContext()
-        let (vm, _) = makeChatViewModel(modelContext: ctx)
-
-        let assistantMsg = ChatMessage(role: .assistant)
-        vm.messages.append(assistantMsg)
-        vm.setCurrentAssistantMessage(assistantMsg)
-
-        let systemLine = #"{"type":"system","session_id":"s1","model":"claude-sonnet-4-20250514"}"# + "\n"
-
-        let stream = makeExecStream([.stdout(Data(systemLine.utf8))])
-        let result = await vm.processExecStream(events: stream, modelContext: ctx)
-
-        guard case .disconnected = result else {
-            Issue.record("Expected .disconnected, got \(result)")
-            return
-        }
-    }
-
-    @Test func processExecStream_noDataReceived_returnsTimedOut() async throws {
-        let ctx = try makeModelContext()
-        let (vm, _) = makeChatViewModel(modelContext: ctx)
-
-        let stream = makeExecStream([])
-        let result = await vm.processExecStream(events: stream, modelContext: ctx)
-
-        guard case .timedOut = result else {
-            Issue.record("Expected .timedOut, got \(result)")
-            return
-        }
-    }
-
-    @Test func processExecStream_stderrCountsAsActivity_doesNotTimeout() async throws {
-        let ctx = try makeModelContext()
-        let (vm, _) = makeChatViewModel(modelContext: ctx)
-
-        let assistantMsg = ChatMessage(role: .assistant)
-        vm.messages.append(assistantMsg)
-        vm.setCurrentAssistantMessage(assistantMsg)
-
-        // stderr (heartbeat) should count as receivedData so we get .completed not .timedOut
-        let resultLine = #"{"type":"result","session_id":"s1","subtype":"success"}"# + "\n"
-        let stream = makeExecStream([
-            .stderr(Data(".".utf8)),
-            .stdout(Data(resultLine.utf8))
-        ])
-        let result = await vm.processExecStream(events: stream, modelContext: ctx)
-
-        guard case .completed = result else {
-            Issue.record("Expected .completed, got \(result)")
-            return
-        }
-    }
-
-    @Test func processExecStream_setsExecSessionIdFromSessionInfo() async throws {
-        let ctx = try makeModelContext()
-        let (vm, _) = makeChatViewModel(modelContext: ctx)
-
-        let assistantMsg = ChatMessage(role: .assistant)
-        vm.messages.append(assistantMsg)
-        vm.setCurrentAssistantMessage(assistantMsg)
-
-        let resultLine = #"{"type":"result","session_id":"s1","subtype":"success"}"# + "\n"
-        let stream = makeExecStream([
-            .sessionInfo(id: "exec-abc-123"),
-            .stdout(Data(resultLine.utf8))
-        ])
-
-        _ = await vm.processExecStream(events: stream, modelContext: ctx)
-
-        #expect(vm.execSessionId == "exec-abc-123")
-    }
-
-    // MARK: - reattachToExec
-
-    @Test func reattachToExec_setsLastSessionCompleteWhenResultReceived() async throws {
-        let ctx = try makeModelContext()
-        let (vm, _) = makeChatViewModel(modelContext: ctx)
-
-        let assistantMsg = ChatMessage(role: .assistant)
-        vm.messages.append(assistantMsg)
-        vm.setCurrentAssistantMessage(assistantMsg)
-
-        let systemLine = #"{"type":"system","session_id":"s1","model":"claude-sonnet-4-20250514"}"# + "\n"
-        let textLine = #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Done"}]}}"# + "\n"
-        let resultLine = #"{"type":"result","session_id":"s1","subtype":"success"}"# + "\n"
-
-        let stream = makeExecStream([
-            .stdout(Data((systemLine + textLine + resultLine).utf8))
-        ])
-        let result = await vm.processExecStream(events: stream, modelContext: ctx)
+        let result = await vm.processChannelStream(events: stream, modelContext: ctx)
 
         #expect(result == .completed)
+        #expect(vm.channelLastEventId == "evt-3")
+        #expect(chat.channelLastEventId == "evt-3")
         #expect(vm.sessionId == "s1")
+        #expect(assistantMsg.textContent == "Hello from channel")
     }
 
-    // MARK: - reconnectIfNeeded with execSessionId
+    // MARK: - reconnectIfNeeded
 
-    @Test func reconnectIfNeeded_nilExecSessionId_restoresDraftSynchronously() throws {
+    @Test func reconnectIfNeeded_noSession_restoresDraftSynchronously() throws {
         let ctx = try makeModelContext()
         let (vm, _) = makeChatViewModel(modelContext: ctx)
 
@@ -626,16 +545,15 @@ struct ChatViewModelTests {
         #expect(vm.inputText == "draft message")
     }
 
-    @Test func reconnectIfNeeded_withExecSessionId_startsReattachTask() throws {
+    @Test func reconnectIfNeeded_withChannelLastEventId_startsReattachTask() throws {
         let ctx = try makeModelContext()
         let (vm, _) = makeChatViewModel(modelContext: ctx)
 
-        vm.messages = [ChatMessage(role: .user, content: [.text("hello")])]
-        vm.setExecSessionId("exec-abc")
+        vm.messages = [ChatMessage(role: .assistant, content: [.text("partial")])]
+        vm.setChannelLastEventId("evt-3")
 
         vm.reconnectIfNeeded(apiClient: SpritesAPIClient(), modelContext: ctx)
 
-        // A stream task should have been created for reattach
         #expect(vm.streamTask != nil)
     }
 
@@ -674,6 +592,17 @@ struct ChatViewModelTests {
         vm.loadSession(apiClient: SpritesAPIClient(), modelContext: ctx)
 
         #expect(vm.processedEventUUIDs == ["uuid-x", "uuid-y"])
+    }
+
+    @Test func loadSession_restoresChannelLastEventId() throws {
+        let ctx = try makeModelContext()
+        let (vm, chat) = makeChatViewModel(modelContext: ctx)
+
+        chat.channelLastEventId = "evt-restored"
+
+        vm.loadSession(apiClient: SpritesAPIClient(), modelContext: ctx)
+
+        #expect(vm.channelLastEventId == "evt-restored")
     }
 
     @Test func loadSession_setsEmptyUUIDsWhenNoneStored() throws {
@@ -1013,14 +942,14 @@ struct ChatViewModelTests {
         #expect(vm.status == .reconnecting)
     }
 
-    /// When reconnectIfNeeded is called with execSessionId set twice synchronously,
+    /// When reconnectIfNeeded is called twice synchronously,
     /// the second call pre-cancels the first task and replaces streamTask.
     @Test func reconnectIfNeeded_concurrentCallPrecancelsFirst() throws {
         let ctx = try makeModelContext()
         let (vm, _) = makeChatViewModel(modelContext: ctx)
 
-        vm.messages = [ChatMessage(role: .user, content: [.text("hello")])]
-        vm.setExecSessionId("exec-abc")
+        vm.messages = [ChatMessage(role: .assistant, content: [.text("partial")])]
+        vm.setChannelLastEventId("evt-1")
 
         // First call creates a stream task
         vm.reconnectIfNeeded(apiClient: SpritesAPIClient(), modelContext: ctx)

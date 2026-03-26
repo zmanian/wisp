@@ -131,12 +131,13 @@ final class LiveActivityManager {
             stepNumber: lastStepNumber
         )
 
+        nonisolated(unsafe) let activityToEnd = activity
         Task {
-            await activity.end(
+            await activityToEnd.end(
                 .init(state: finalState, staleDate: nil),
                 dismissalPolicy: .after(.now + 8)
             )
-            logger.info("Ended Live Activity: id=\(activity.id)")
+            logger.info("Ended Live Activity: id=\(activityToEnd.id)")
         }
 
         currentActivity = nil
@@ -156,9 +157,11 @@ final class LiveActivityManager {
     private func flushPendingUpdate() {
         guard let activity = currentActivity, let state = pendingContent else { return }
 
+        nonisolated(unsafe) let activityToUpdate = activity
+        let stateToApply = state
         Task {
-            await activity.update(.init(state: state, staleDate: nil))
-            logger.debug("Updated Live Activity: id=\(activity.id) step=\(state.stepNumber)")
+            await activityToUpdate.update(.init(state: stateToApply, staleDate: nil))
+            logger.debug("Updated Live Activity: id=\(activityToUpdate.id) step=\(stateToApply.stepNumber)")
         }
     }
 }

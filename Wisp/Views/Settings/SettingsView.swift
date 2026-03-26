@@ -3,7 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(SpritesAPIClient.self) private var apiClient
     @AppStorage("claudeModel") private var claudeModel: String = ClaudeModel.opus.rawValue
-    @AppStorage("maxTurns") private var maxTurns: Int = 0
+@AppStorage("maxTurns") private var maxTurns: Int = 0
     @AppStorage("claudeQuestionTool") private var claudeQuestionTool: Bool = true
     @AppStorage("gitName") private var gitName: String = ""
     @AppStorage("gitEmail") private var gitEmail: String = ""
@@ -30,7 +30,7 @@ struct SettingsView: View {
         ClaudeModel(rawValue: claudeModel) ?? .sonnet
     }
 
-    private var themeColorScheme: ColorScheme? {
+private var themeColorScheme: ColorScheme? {
         switch theme {
         case "light": .light
         case "dark": .dark

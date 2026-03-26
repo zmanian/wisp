@@ -113,7 +113,7 @@ struct ChatNameTests {
 
         vm.inputText = "Help me debug this crash"
         vm.sendMessage(apiClient: SpritesAPIClient(), modelContext: ctx)
-        await vm.namingTask?.value
+        _ = await vm.namingTask?.value
 
         #expect(chat.customName != nil)
         #expect(chat.customName?.isEmpty == false)
@@ -126,13 +126,13 @@ struct ChatNameTests {
 
         vm.inputText = "First message"
         vm.sendMessage(apiClient: SpritesAPIClient(), modelContext: ctx)
-        await vm.namingTask?.value
+        _ = await vm.namingTask?.value
         let autoName = chat.customName
         #expect(autoName != nil)
 
         vm.inputText = "Second message"
         vm.sendMessage(apiClient: SpritesAPIClient(), modelContext: ctx)
-        await vm.namingTask?.value
+        _ = await vm.namingTask?.value
 
         #expect(chat.customName == autoName)
     }
@@ -146,7 +146,7 @@ struct ChatNameTests {
 
         vm.inputText = "Some first message"
         vm.sendMessage(apiClient: SpritesAPIClient(), modelContext: ctx)
-        await vm.namingTask?.value
+        _ = await vm.namingTask?.value
 
         #expect(chat.customName == "My Custom Name")
     }

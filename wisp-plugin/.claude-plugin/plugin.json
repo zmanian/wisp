@@ -1,0 +1,6 @@
+{
+  "name": "wisp",
+  "description": "Chat with Claude Code from the Wisp iOS app on Sprites.dev cloud VMs",
+  "version": "0.0.1",
+  "keywords": ["wisp", "sprites", "ios", "mobile", "chat", "channel"]
+}

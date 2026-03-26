@@ -133,4 +133,55 @@ struct APIModelTests {
         #expect(decoded.isAuto == checkpoint.isAuto)
         #expect(decoded.comment == checkpoint.comment)
     }
+
+    // MARK: - Channel bridge
+
+    @Test func channelBridgeMessageRequestUsesSnakeCaseKeys() throws {
+        let request = ChannelBridgeMessageRequest(
+            chatId: "chat-123",
+            text: "Ship it",
+            workingDirectory: "/home/sprite/project",
+            sessionId: "sess-123",
+            model: "claude-sonnet-4",
+            maxTurns: 10,
+            claudeQuestionToolEnabled: true,
+            customInstructions: "Be concise",
+            attachments: ["/tmp/spec.md"]
+        )
+
+        let data = try encoder.encode(request)
+        let jsonObject = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(jsonObject["chat_id"] as? String == "chat-123")
+        #expect(jsonObject["working_directory"] as? String == "/home/sprite/project")
+        #expect(jsonObject["session_id"] as? String == "sess-123")
+        #expect(jsonObject["max_turns"] as? Int == 10)
+        #expect(jsonObject["claude_question_tool_enabled"] as? Bool == true)
+        #expect(jsonObject["custom_instructions"] as? String == "Be concise")
+    }
+
+    @Test func decodeChannelBridgeStatus() throws {
+        let json = """
+        {
+            "is_running": true,
+            "is_busy": false,
+            "activity": "Waiting for Claude",
+            "session_id": "sess-abc"
+        }
+        """
+
+        let status = try decoder.decode(ChannelBridgeStatus.self, from: Data(json.utf8))
+        #expect(status.isRunning == true)
+        #expect(status.isBusy == false)
+        #expect(status.activity == "Waiting for Claude")
+        #expect(status.sessionId == "sess-abc")
+    }
+
+    @Test func channelBridgeInterruptRequestUsesSnakeCaseKey() throws {
+        let request = ChannelBridgeInterruptRequest(chatId: "chat-456")
+        let data = try encoder.encode(request)
+        let jsonObject = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(jsonObject["chat_id"] as? String == "chat-456")
+    }
 }

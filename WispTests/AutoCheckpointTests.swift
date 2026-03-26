@@ -66,16 +66,7 @@ struct AutoCheckpointTests {
     @Test("Old persisted messages without checkpoint fields decode with nil")
     func backwardsCompatibility() throws {
         // Simulate old format without checkpoint fields
-        let json = """
-        {
-            "id": "12345678-1234-1234-1234-123456789012",
-            "timestamp": 0,
-            "role": "assistant",
-            "content": [{"text": {"_0": "Hello"}}]
-        }
-        """
         // This tests that decodeIfPresent handles missing keys
-        let data = Data(json.utf8)
         // The actual encoding format may differ, but the key point is
         // that PersistedChatMessage with optional checkpoint fields
         // should handle missing keys gracefully via Codable synthesis
